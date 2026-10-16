@@ -1,0 +1,107 @@
+{
+  "budget": {
+    "monthlyLimit": 1500,
+    "currency": "USD"
+  },
+  "transactions": [
+    {
+      "id": "tx-1792140039992-0ee7c",
+      "title": "Final Year Project Materials",
+      "amount": 85,
+      "type": "expense",
+      "category": "Education & Books",
+      "date": "2026-10-16",
+      "notes": "Sensors and components"
+    },
+    {
+      "id": "tx-1",
+      "title": "Campus Bookstore - Textbooks",
+      "amount": 145.5,
+      "type": "expense",
+      "category": "Education",
+      "date": "2026-10-02",
+      "notes": "Semester textbooks"
+    },
+    {
+      "id": "tx-2",
+      "title": "Monthly University Grant / Scholarship",
+      "amount": 1200,
+      "type": "income",
+      "category": "Scholarship",
+      "date": "2026-10-01",
+      "notes": "Direct deposit"
+    },
+    {
+      "id": "tx-3",
+      "title": "Grocery Store Essentials",
+      "amount": 86.2,
+      "type": "expense",
+      "category": "Food & Dining",
+      "date": "2026-10-05",
+      "notes": "Weekly groceries"
+    },
+    {
+      "id": "tx-4",
+      "title": "Part-Time Web Tutor",
+      "amount": 450,
+      "type": "income",
+      "category": "Freelance",
+      "date": "2026-10-08",
+      "notes": "Coding lessons for freshman"
+    },
+    {
+      "id": "tx-5",
+      "title": "Student Apartment Rent & Utilities",
+      "amount": 650,
+      "type": "expense",
+      "category": "Housing",
+      "date": "2026-10-01",
+      "notes": "Rent split with roommate"
+    },
+    {
+      "id": "tx-6",
+      "title": "Monthly Metro Transit Pass",
+      "amount": 60,
+      "type": "expense",
+      "category": "Transportation",
+      "date": "2026-10-03",
+      "notes": "Subway & bus monthly pass"
+    },
+    {
+      "id": "tx-7",
+      "title": "Streaming & Tech Subscriptions",
+      "amount": 24.99,
+      "type": "expense",
+      "category": "Entertainment",
+      "date": "2026-10-10",
+      "notes": "Spotify + GitHub Copilot"
+    },
+    {
+      "id": "tx-8",
+      "title": "Campus Coffee & Snacks",
+      "amount": 32.5,
+      "type": "expense",
+      "category": "Food & Dining",
+      "date": "2026-10-12",
+      "notes": "Study session treats"
+    },
+    {
+      "id": "tx-9",
+      "title": "September Internship Stipend",
+      "amount": 1800,
+      "type": "income",
+      "category": "Salary",
+      "date": "2026-09-28",
+      "notes": "Summer/Fall internship stipend"
+    },
+    {
+      "id": "tx-10",
+      "title": "Laptop Repair & Charger",
+      "amount": 120,
+      "type": "expense",
+      "category": "Shopping",
+      "date": "2026-09-15",
+      "notes": "Replacement USB-C power adapter"
+    }
+  ]
+}
