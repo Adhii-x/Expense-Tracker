@@ -23,19 +23,51 @@ if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
-// Initial seed data
+// Initial seed data matching student & young professional finance theme
 const initialData = {
   budget: {
     monthlyLimit: 1500,
     currency: 'USD'
   },
+  cards: [
+    {
+      id: 'card-1',
+      holder: 'Ethan Reynolds',
+      type: 'VISA',
+      last4: '4892',
+      expiry: '08/28',
+      balance: 12850.00,
+      color: 'gradient-orange',
+      isPrimary: true
+    },
+    {
+      id: 'card-2',
+      holder: 'Ethan Reynolds',
+      type: 'Mastercard',
+      last4: '6150',
+      expiry: '11/27',
+      balance: 6150.00,
+      color: 'dark-glass',
+      isPrimary: false
+    },
+    {
+      id: 'card-3',
+      holder: 'Ethan Reynolds',
+      type: 'VISA',
+      last4: '3140',
+      expiry: '03/29',
+      balance: 3140.00,
+      color: 'gradient-charcoal',
+      isPrimary: false
+    }
+  ],
   transactions: [
     {
       id: 'tx-1',
       title: 'Campus Bookstore - Textbooks',
       amount: 145.50,
       type: 'expense',
-      category: 'Education',
+      category: 'Education & Books',
       date: '2026-10-02',
       notes: 'Semester textbooks'
     },
@@ -44,7 +76,7 @@ const initialData = {
       title: 'Monthly University Grant / Scholarship',
       amount: 1200.00,
       type: 'income',
-      category: 'Scholarship',
+      category: 'Scholarship / Grant',
       date: '2026-10-01',
       notes: 'Direct deposit'
     },
@@ -53,7 +85,7 @@ const initialData = {
       title: 'Grocery Store Essentials',
       amount: 86.20,
       type: 'expense',
-      category: 'Food & Dining',
+      category: 'Groceries',
       date: '2026-10-05',
       notes: 'Weekly groceries'
     },
@@ -62,7 +94,7 @@ const initialData = {
       title: 'Part-Time Web Tutor',
       amount: 450.00,
       type: 'income',
-      category: 'Freelance',
+      category: 'Freelance / Tutoring',
       date: '2026-10-08',
       notes: 'Coding lessons for freshman'
     },
@@ -71,7 +103,7 @@ const initialData = {
       title: 'Student Apartment Rent & Utilities',
       amount: 650.00,
       type: 'expense',
-      category: 'Housing',
+      category: 'Housing & Rent',
       date: '2026-10-01',
       notes: 'Rent split with roommate'
     },
@@ -131,7 +163,9 @@ function readDb() {
       return initialData;
     }
     const raw = fs.readFileSync(DB_FILE, 'utf-8');
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    if (!parsed.cards) parsed.cards = initialData.cards;
+    return parsed;
   } catch (err) {
     console.error('Error reading database, resetting to initial data:', err);
     writeDb(initialData);
@@ -162,7 +196,7 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// GET all transactions (with optional category, month, and type query params)
+// GET all transactions
 app.get('/api/transactions', (req, res) => {
   const db = readDb();
   let list = [...(db.transactions || [])];
@@ -178,7 +212,6 @@ app.get('/api/transactions', (req, res) => {
   }
 
   if (month && month !== 'All') {
-    // Month is expected as 'YYYY-MM'
     list = list.filter(t => t.date && t.date.startsWith(month));
   }
 
@@ -191,7 +224,6 @@ app.get('/api/transactions', (req, res) => {
     );
   }
 
-  // Sort by date descending by default
   list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   res.json({
@@ -205,7 +237,6 @@ app.get('/api/transactions', (req, res) => {
 app.post('/api/transactions', (req, res) => {
   const { title, amount, type, category, date, notes } = req.body;
 
-  // Validation
   if (!title || typeof title !== 'string' || title.trim() === '') {
     return res.status(400).json({ success: false, error: 'Transaction title is required.' });
   }
@@ -320,6 +351,35 @@ app.delete('/api/transactions/:id', (req, res) => {
   });
 });
 
+// GET cards
+app.get('/api/cards', (req, res) => {
+  const db = readDb();
+  res.json({
+    success: true,
+    data: db.cards || []
+  });
+});
+
+// POST add card
+app.post('/api/cards', (req, res) => {
+  const { holder, type, last4, expiry, balance, color } = req.body;
+  const db = readDb();
+  const newCard = {
+    id: 'card-' + Date.now(),
+    holder: holder || 'Ethan Reynolds',
+    type: type || 'VISA',
+    last4: last4 || Math.floor(1000 + Math.random() * 9000).toString(),
+    expiry: expiry || '12/28',
+    balance: parseFloat(balance || 0),
+    color: color || 'gradient-orange',
+    isPrimary: false
+  };
+  db.cards = db.cards || [];
+  db.cards.push(newCard);
+  writeDb(db);
+  res.json({ success: true, data: newCard });
+});
+
 // GET budget settings
 app.get('/api/budget', (req, res) => {
   const db = readDb();
@@ -329,7 +389,7 @@ app.get('/api/budget', (req, res) => {
   });
 });
 
-// POST / PUT budget settings
+// POST budget settings
 app.post('/api/budget', (req, res) => {
   const { monthlyLimit, currency } = req.body;
   const limit = parseFloat(monthlyLimit);
@@ -398,6 +458,139 @@ app.get('/api/summary', (req, res) => {
   });
 });
 
+// ======================== AI AGENT ENDPOINTS ========================
+
+// POST /api/ai/chat -> Financial AI Advisor & Copilot
+app.post('/api/ai/chat', (req, res) => {
+  const { prompt, context } = req.body;
+  const db = readDb();
+  const transactions = db.transactions || [];
+  const query = (prompt || '').toLowerCase().trim();
+
+  let income = 0;
+  let expenses = 0;
+  const categoryMap = {};
+
+  transactions.forEach(t => {
+    const amt = Number(t.amount) || 0;
+    if (t.type === 'income') {
+      income += amt;
+    } else {
+      expenses += amt;
+      categoryMap[t.category] = (categoryMap[t.category] || 0) + amt;
+    }
+  });
+
+  const balance = income - expenses;
+  const topCategory = Object.entries(categoryMap).sort((a, b) => b[1] - a[1])[0] || ['None', 0];
+  const budgetLimit = db.budget?.monthlyLimit || 1500;
+  const pctOfBudget = budgetLimit > 0 ? Math.round((expenses / budgetLimit) * 100) : 0;
+
+  // Intelligent Financial Heuristic AI Responses
+  let reply = '';
+  let suggestedActions = [];
+
+  if (query.includes('save') || query.includes('cut') || query.includes('reduce')) {
+    reply = `💡 **AI Savings Plan for You:**\n\n1. **Largest Spending Drain:** Your biggest expense category is **${topCategory[0]}** ($${topCategory[1].toFixed(2)}). Trimming this by just 15% would save you **$${(topCategory[1] * 0.15).toFixed(2)}** each month.\n2. **Subscription Audit:** Review recurring memberships (streaming, cloud tools). Halving discretionary spending can free up **$50–$100/mo**.\n3. **Automate Transfers:** Set aside 20% ($${(income * 0.20).toFixed(2)}) the moment income lands.`;
+    suggestedActions = ['Set budget limit to $' + Math.max(500, Math.round(expenses * 0.85)), 'Export CSV Report', 'View Category Chart'];
+  } else if (query.includes('budget') || query.includes('limit') || query.includes('warning')) {
+    reply = `📊 **Budget Status Analysis:**\n\n- **Monthly Limit:** $${budgetLimit.toLocaleString()}\n- **Total Spent:** $${expenses.toFixed(2)} (${pctOfBudget}%)\n- **Status:** ${pctOfBudget >= 100 ? '🚨 Over budget by $' + (expenses - budgetLimit).toFixed(2) : pctOfBudget >= 80 ? '⚠️ Warning: Approaching 80% threshold' : '✅ Healthy (<80% allocated)'}.\n\nAccording to the **50/30/20 rule**, allocate 50% for Needs, 30% for Wants, and 20% for Savings ($${(income * 0.2).toFixed(2)}).`;
+    suggestedActions = ['Adjust Monthly Budget', 'Check Recent Expenses', 'Simulate Next Month'];
+  } else if (query.includes('afford') || query.includes('can i buy') || query.includes('purchase')) {
+    const numbers = query.match(/\d+(\.\d+)?/g);
+    const amountToCheck = numbers ? parseFloat(numbers[0]) : 100;
+    const canAfford = balance >= amountToCheck && (expenses + amountToCheck) <= budgetLimit;
+
+    reply = canAfford
+      ? `✅ **Affordability Verdict:** Yes, you can comfortably afford **$${amountToCheck.toFixed(2)}**!\n\nYour net balance is **$${balance.toFixed(2)}**, and after this purchase you will still have **$${(balance - amountToCheck).toFixed(2)}** buffer remaining.`
+      : `⚠️ **Caution:** A purchase of **$${amountToCheck.toFixed(2)}** will push your current balance to **$${(balance - amountToCheck).toFixed(2)}** and utilize ${Math.round(((expenses + amountToCheck) / budgetLimit) * 100)}% of your monthly budget limit. Consider deferring non-essentials.`;
+    suggestedActions = ['Add as Pending Expense', 'Review Bank Balance'];
+  } else if (query.includes('predict') || query.includes('forecast') || query.includes('next month')) {
+    const projectedSavings = Math.max(0, balance * 1.05);
+    reply = `🔮 **AI Cashflow Projection for Next Month:**\n\n- **Projected Inflow:** ~$${income.toFixed(2)}\n- **Projected Outflow:** ~$${(expenses * 0.96).toFixed(2)} (if current pacing holds)\n- **Forecast Net Balance:** ~$${(balance + 120).toFixed(2)}\n\n*Pro-tip:* If you maintain dining out under $150, you'll hit a record **28% net savings rate**!`;
+    suggestedActions = ['Lock Target Savings', 'View Bar Chart'];
+  } else {
+    reply = `🤖 **FinAI Financial Copilot Report:**\n\n- **Current Balance:** $${balance.toFixed(2)}\n- **Total Income:** +$${income.toFixed(2)}\n- **Total Expenses:** -$${expenses.toFixed(2)}\n- **Dominant Outflow:** ${topCategory[0]} ($${topCategory[1].toFixed(2)})\n- **Financial Health Score:** ${Math.min(100, Math.max(30, Math.round((balance / (income || 1)) * 100 + 40)))} / 100\n\nYou can ask me: *"How can I save $200?"*, *"Can I afford $150?"*, or type natural phrases like *"Spent $40 on fuel today"* to quick-log transactions!`;
+    suggestedActions = ['How to save $200?', 'Can I afford a $150 item?', 'Analyze my biggest expense'];
+  }
+
+  res.json({
+    success: true,
+    agent: 'FinAI Agent v2.5',
+    reply,
+    suggestedActions,
+    healthScore: Math.min(100, Math.max(30, Math.round((balance / (income || 1)) * 100 + 40))),
+    timestamp: new Date().toISOString()
+  });
+});
+
+// POST /api/ai/parse-transaction -> Natural language to structured transaction
+app.post('/api/ai/parse-transaction', (req, res) => {
+  const { text } = req.body;
+  if (!text || typeof text !== 'string') {
+    return res.status(400).json({ success: false, error: 'Text prompt is required.' });
+  }
+
+  const raw = text.toLowerCase();
+
+  // Extract amount
+  const amountMatch = text.match(/\$?(\d+(\.\d{1,2})?)/);
+  const amount = amountMatch ? parseFloat(amountMatch[1]) : 25.00;
+
+  // Determine type
+  const isIncome = raw.includes('received') || raw.includes('earned') || raw.includes('got paid') || raw.includes('salary') || raw.includes('stipend') || raw.includes('grant') || raw.includes('income') || raw.includes('deposit');
+  const type = isIncome ? 'income' : 'expense';
+
+  // Determine category
+  let category = isIncome ? 'Other Income' : 'Other Expense';
+  if (raw.includes('food') || raw.includes('dinner') || raw.includes('lunch') || raw.includes('coffee') || raw.includes('cafe') || raw.includes('snack') || raw.includes('restaurant')) {
+    category = 'Food & Dining';
+  } else if (raw.includes('grocery') || raw.includes('groceries') || raw.includes('market') || raw.includes('supermarket')) {
+    category = 'Groceries';
+  } else if (raw.includes('book') || raw.includes('tuition') || raw.includes('course') || raw.includes('exam') || raw.includes('college') || raw.includes('university')) {
+    category = 'Education & Books';
+  } else if (raw.includes('uber') || raw.includes('lyft') || raw.includes('bus') || raw.includes('metro') || raw.includes('transit') || raw.includes('gas') || raw.includes('fuel')) {
+    category = 'Transportation';
+  } else if (raw.includes('rent') || raw.includes('apartment') || raw.includes('housing') || raw.includes('room')) {
+    category = 'Housing & Rent';
+  } else if (raw.includes('netflix') || raw.includes('spotify') || raw.includes('movie') || raw.includes('game') || raw.includes('subscription')) {
+    category = 'Entertainment';
+  } else if (raw.includes('salary') || raw.includes('job') || raw.includes('paycheck')) {
+    category = 'Salary';
+  } else if (raw.includes('tutor') || raw.includes('freelance') || raw.includes('client')) {
+    category = 'Freelance / Tutoring';
+  } else if (raw.includes('scholarship') || raw.includes('grant')) {
+    category = 'Scholarship / Grant';
+  } else if (raw.includes('cloth') || raw.includes('shoes') || raw.includes('shopping') || raw.includes('amazon')) {
+    category = 'Shopping';
+  }
+
+  // Clean title
+  let cleanTitle = text
+    .replace(/\$?(\d+(\.\d{1,2})?)/g, '')
+    .replace(/(spent|paid|bought|received|earned|for|on|yesterday|today|dollars|usd)/gi, '')
+    .trim();
+
+  if (!cleanTitle || cleanTitle.length < 2) {
+    cleanTitle = `${category} Transaction`;
+  }
+  cleanTitle = cleanTitle.charAt(0).toUpperCase() + cleanTitle.slice(1);
+
+  const date = new Date().toISOString().substring(0, 10);
+
+  res.json({
+    success: true,
+    data: {
+      title: cleanTitle,
+      amount,
+      type,
+      category,
+      date,
+      notes: `Quick-added via FinAI natural language: "${text}"`
+    }
+  });
+});
+
 // POST seed sample data
 app.post('/api/seed', (req, res) => {
   writeDb(initialData);
@@ -439,4 +632,5 @@ app.listen(PORT, () => {
   console.log(`🚀 Expense Tracker API Server running at http://localhost:${PORT}`);
   console.log(`   Health check: http://localhost:${PORT}/api/health`);
   console.log(`   Transactions: http://localhost:${PORT}/api/transactions`);
+  console.log(`   AI Agent: http://localhost:${PORT}/api/ai/chat`);
 });

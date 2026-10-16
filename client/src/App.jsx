@@ -1,11 +1,18 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import Navbar from './components/Navbar';
-import SummaryCards from './components/SummaryCards';
+import Sidebar from './components/Sidebar';
+import TopHeader from './components/TopHeader';
+import BalanceChartCard from './components/BalanceChartCard';
+import CardsWidget from './components/CardsWidget';
+import AiAgentWidget from './components/AiAgentWidget';
+import InvestmentsBarChart from './components/InvestmentsBarChart';
 import BudgetTracker from './components/BudgetTracker';
-import TransactionForm from './components/TransactionForm';
+import SummaryCards from './components/SummaryCards';
 import ExpenseChart from './components/ExpenseChart';
 import TransactionList from './components/TransactionList';
+import TransactionForm from './components/TransactionForm';
 import EditModal from './components/EditModal';
+import QuickTransferModal from './components/QuickTransferModal';
+import AiCopilotModal from './components/AiCopilotModal';
 import Toast from './components/Toast';
 
 import {
@@ -16,27 +23,28 @@ import {
   deleteTransactionApi,
   fetchBudgetApi,
   saveBudgetApi,
+  fetchCardsApi,
   seedDemoDataApi
 } from './services/api';
 import { downloadCsv } from './utils';
 
 export default function App() {
-  // Theme state
-  const [darkMode, setDarkMode] = useState(() => {
-    return localStorage.getItem('expensetracker_theme') === 'dark' ||
-      (!('expensetracker_theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
-  });
-
-  // State
-  const [transactions, setTransactions] = useState([]);
-  const [budget, setBudget] = useState({ monthlyLimit: 1500, currency: 'USD' });
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [darkMode, setDarkMode] = useState(true); // Default to ultra sleek dark theme matching reference
   const [currency, setCurrency] = useState('USD');
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Data state
+  const [transactions, setTransactions] = useState([]);
+  const [cards, setCards] = useState([]);
+  const [budget, setBudget] = useState({ monthlyLimit: 1500, currency: 'USD' });
   const [backendOnline, setBackendOnline] = useState(false);
-  const [isCheckingBackend, setIsCheckingBackend] = useState(false);
-  
-  // Filters & Modal
+
+  // Filters & Modals
   const [selectedMonth, setSelectedMonth] = useState('All');
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [isAiOpen, setIsAiOpen] = useState(false);
+  const [quickModal, setQuickModal] = useState(null); // null | 'expense' | 'income' | 'card'
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [toast, setToast] = useState(null);
 
@@ -44,46 +52,35 @@ export default function App() {
   useEffect(() => {
     if (darkMode) {
       document.documentElement.classList.add('dark');
-      localStorage.setItem('expensetracker_theme', 'dark');
     } else {
       document.documentElement.classList.remove('dark');
-      localStorage.setItem('expensetracker_theme', 'light');
     }
   }, [darkMode]);
 
-  // Check backend and load initial data
-  const checkBackendAndLoad = useCallback(async () => {
-    setIsCheckingBackend(true);
+  // Load data
+  const loadData = useCallback(async () => {
     const isOnline = await testBackendConnection();
     setBackendOnline(isOnline);
-    setIsCheckingBackend(false);
 
-    // Fetch transactions
-    const txData = await fetchTransactionsApi(isOnline);
+    const [txData, budgetData, cardsData] = await Promise.all([
+      fetchTransactionsApi(isOnline),
+      fetchBudgetApi(isOnline),
+      fetchCardsApi(isOnline)
+    ]);
+
     setTransactions(txData);
-
-    // Fetch budget
-    const budgetData = await fetchBudgetApi(isOnline);
     if (budgetData) {
       setBudget(budgetData);
-      if (budgetData.currency) {
-        setCurrency(budgetData.currency);
-      }
+      if (budgetData.currency) setCurrency(budgetData.currency);
+    }
+    if (cardsData) {
+      setCards(cardsData);
     }
   }, []);
 
   useEffect(() => {
-    checkBackendAndLoad();
-  }, [checkBackendAndLoad]);
-
-  // Update currency when changed
-  const handleCurrencyChange = async (newCurr) => {
-    setCurrency(newCurr);
-    const updatedBudget = { ...budget, currency: newCurr };
-    setBudget(updatedBudget);
-    await saveBudgetApi(updatedBudget, backendOnline);
-    showToast(`Currency changed to ${newCurr}`, 'info');
-  };
+    loadData();
+  }, [loadData]);
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
@@ -94,10 +91,10 @@ export default function App() {
     try {
       const created = await createTransactionApi(data, backendOnline);
       setTransactions(prev => [created, ...prev]);
-      showToast(`${created.type === 'income' ? 'Income' : 'Expense'} "${created.title}" added successfully!`);
+      showToast(`${created.type === 'income' ? 'Income' : 'Expense'} recorded: "${created.title}"`);
       return true;
     } catch (err) {
-      showToast(err.message || 'Failed to add transaction', 'warning');
+      showToast(err.message || 'Failed to record entry', 'warning');
       return false;
     }
   };
@@ -130,28 +127,21 @@ export default function App() {
     const updated = { ...budget, monthlyLimit: newLimit };
     setBudget(updated);
     await saveBudgetApi(updated, backendOnline);
-    showToast('Monthly budget limit updated!');
+    showToast('Monthly budget threshold updated!');
   };
 
   // Export to CSV
   const handleExportCsv = () => {
-    // If month/category filter is active, export filtered transactions
-    const toExport = transactions.filter(t => {
-      if (selectedMonth !== 'All' && (!t.date || !t.date.startsWith(selectedMonth))) return false;
-      if (selectedCategory !== 'All' && t.category !== selectedCategory) return false;
-      return true;
-    });
-
-    downloadCsv(toExport.length > 0 ? toExport : transactions, currency);
-    showToast(`Exported ${toExport.length > 0 ? toExport.length : transactions.length} transactions to CSV!`, 'success');
+    downloadCsv(transactions, currency);
+    showToast(`Exported ${transactions.length} transactions to CSV spreadsheet!`, 'success');
   };
 
-  // Reset to Demo Data
+  // Reset demo data
   const handleResetDemo = async () => {
-    if (window.confirm('Reset transactions to student sample demo data? (Existing records will be refreshed)')) {
+    if (window.confirm('Reload realistic student sample demo data?')) {
       const demoList = await seedDemoDataApi(backendOnline);
       setTransactions(demoList);
-      showToast('Loaded sample demo transactions!', 'info');
+      showToast('Loaded sample demo records!', 'info');
     }
   };
 
@@ -182,7 +172,7 @@ export default function App() {
     };
   }, [transactions]);
 
-  // Expenses for the currently active/selected month (or current calendar month)
+  // Current month expenses
   const currentMonthExpenses = useMemo(() => {
     const targetMonth = selectedMonth !== 'All' 
       ? selectedMonth 
@@ -197,107 +187,251 @@ export default function App() {
     ? selectedMonth 
     : `${new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} (Current)`;
 
+  // Global search filtering across transactions
+  const searchedTransactions = useMemo(() => {
+    if (!searchTerm.trim()) return transactions;
+    const q = searchTerm.toLowerCase();
+    return transactions.filter(t => 
+      (t.title && t.title.toLowerCase().includes(q)) ||
+      (t.notes && t.notes.toLowerCase().includes(q)) ||
+      (t.category && t.category.toLowerCase().includes(q))
+    );
+  }, [transactions, searchTerm]);
+
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors">
+    <div className="min-h-screen bg-[#0e0d0d] text-[#e6ded8] flex flex-row overflow-x-hidden font-sans antialiased selection:bg-[#ff6b00] selection:text-white">
       
-      {/* Sticky Navigation Bar */}
-      <Navbar
-        darkMode={darkMode}
-        setDarkMode={setDarkMode}
-        currency={currency}
-        setCurrency={handleCurrencyChange}
-        backendOnline={backendOnline}
-        checkBackend={checkBackendAndLoad}
-        onExportCsv={handleExportCsv}
-        onResetDemo={handleResetDemo}
-        isCheckingBackend={isCheckingBackend}
+      {/* 1. Left Vertical Sidebar (Matching Reference Image) */}
+      <Sidebar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        onOpenAiAgent={() => setIsAiOpen(true)}
       />
 
-      {/* Main Content Dashboard */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* 2. Main Content Canvas */}
+      <div className="flex-1 flex flex-col min-w-0">
         
-        {/* Hero / Header greeting */}
-        <div className="mb-8">
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-            Financial Health Dashboard
-          </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Track income, manage expenses, monitor budget thresholds, and explore visual data insights.
-          </p>
-        </div>
-
-        {/* 1. Summary Metric Cards */}
-        <SummaryCards
-          totalBalance={totalBalance}
-          totalIncome={totalIncome}
-          totalExpenses={totalExpenses}
+        {/* Top Header Navigation (REST API status removed as requested) */}
+        <TopHeader
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          darkMode={darkMode}
+          setDarkMode={setDarkMode}
           currency={currency}
-          incomeCount={incomeCount}
-          expenseCount={expenseCount}
+          setCurrency={setCurrency}
+          onRefresh={loadData}
+          onExportCsv={handleExportCsv}
+          onResetDemo={handleResetDemo}
+          onOpenAiAgent={() => setIsAiOpen(true)}
         />
 
-        {/* 2. Monthly Budget Tracker with Visual Warning Alerts */}
-        <BudgetTracker
-          currentMonthExpenses={currentMonthExpenses}
-          budgetLimit={budget.monthlyLimit}
-          onSaveBudget={handleSaveBudget}
-          currency={currency}
-          activeMonth={activeMonthLabel}
-        />
-
-        {/* 3. Two-Column Layout: Add Transaction Form & Visual Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 mb-8">
+        {/* Dashboard Content Container */}
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-[1600px] w-full mx-auto space-y-6">
           
-          {/* Left Column: Form to Add Transaction (5 cols) */}
-          <div className="lg:col-span-5">
-            <TransactionForm
-              onAddTransaction={handleAddTransaction}
-              currency={currency}
-            />
+          {/* Navigation View Switcher */}
+          {activeTab === 'dashboard' && (
+            <>
+              {/* ROW 1: Total Balance Chart (Left 8 cols) & My Cards (Right 4 cols) */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                {/* Total Balance Chart Card */}
+                <div className="lg:col-span-8">
+                  <BalanceChartCard
+                    totalBalance={totalBalance}
+                    currency={currency}
+                  />
+                </div>
+
+                {/* My Cards & Recent Transactions Panel */}
+                <div className="lg:col-span-4">
+                  <CardsWidget
+                    cards={cards}
+                    transactions={searchedTransactions}
+                    currency={currency}
+                    onTransferClick={(mode) => setQuickModal(mode || 'expense')}
+                    onRequestClick={() => setQuickModal('income')}
+                    onViewAllClick={() => setActiveTab('ledger')}
+                  />
+                </div>
+
+              </div>
+
+              {/* ROW 2: FinAI Copilot Card (Left 4 cols), Investments Bar Chart (Middle 4 cols), Budget Tracker (Right 4 cols) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-6">
+                
+                {/* AI Financial Agent Card (Matching reference image bottom-left glowing card) */}
+                <div className="lg:col-span-4">
+                  <AiAgentWidget
+                    onOpenAiAgent={() => setIsAiOpen(true)}
+                    healthScore={Math.min(100, Math.max(35, Math.round((totalBalance / (totalIncome || 1)) * 100 + 42)))}
+                  />
+                </div>
+
+                {/* Investments & Monthly Peak Bar Chart (Matching reference image bottom-middle card) */}
+                <div className="lg:col-span-4">
+                  <InvestmentsBarChart currency={currency} />
+                </div>
+
+                {/* Monthly Budget Threshold Warning Card */}
+                <div className="lg:col-span-4">
+                  <BudgetTracker
+                    currentMonthExpenses={currentMonthExpenses}
+                    budgetLimit={budget.monthlyLimit}
+                    onSaveBudget={handleSaveBudget}
+                    currency={currency}
+                    activeMonth={activeMonthLabel}
+                  />
+                </div>
+
+              </div>
+
+              {/* Quick Transaction Ledger Preview below */}
+              <div className="pt-2">
+                <TransactionList
+                  transactions={searchedTransactions}
+                  onEdit={(tx) => setEditingTransaction(tx)}
+                  onDelete={handleDeleteTransaction}
+                  currency={currency}
+                  selectedMonth={selectedMonth}
+                  setSelectedMonth={setSelectedMonth}
+                  selectedCategory={selectedCategory}
+                  setSelectedCategory={setSelectedCategory}
+                />
+              </div>
+            </>
+          )}
+
+          {/* VIEW: Full Transactions Ledger */}
+          {activeTab === 'ledger' && (
+            <div className="space-y-6 animate-fade-in">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-extrabold text-white tracking-tight">
+                    Full Financial Ledger
+                  </h2>
+                  <p className="text-xs text-[#8c827a] mt-0.5">
+                    Filter by category, billing period, or export directly to CSV spreadsheet
+                  </p>
+                </div>
+                <button
+                  onClick={() => setQuickModal('expense')}
+                  className="px-4 py-2 rounded-2xl bg-gradient-to-r from-[#ff6b00] to-[#ea580c] text-white text-xs font-bold shadow-lg shadow-[#ff6b00]/25"
+                >
+                  + Add Entry
+                </button>
+              </div>
+
+              <TransactionList
+                transactions={searchedTransactions}
+                onEdit={(tx) => setEditingTransaction(tx)}
+                onDelete={handleDeleteTransaction}
+                currency={currency}
+                selectedMonth={selectedMonth}
+                setSelectedMonth={setSelectedMonth}
+                selectedCategory={selectedCategory}
+                setSelectedCategory={setSelectedCategory}
+              />
+            </div>
+          )}
+
+          {/* VIEW: Charts & Visual Analytics */}
+          {(activeTab === 'charts' || activeTab === 'analytics') && (
+            <div className="space-y-6 animate-fade-in">
+              <SummaryCards
+                totalBalance={totalBalance}
+                totalIncome={totalIncome}
+                totalExpenses={totalExpenses}
+                currency={currency}
+                incomeCount={incomeCount}
+                expenseCount={expenseCount}
+              />
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <div className="lg:col-span-7">
+                  <ExpenseChart
+                    transactions={transactions}
+                    currency={currency}
+                    darkMode={true}
+                  />
+                </div>
+                <div className="lg:col-span-5">
+                  <TransactionForm
+                    onAddTransaction={handleAddTransaction}
+                    currency={currency}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* VIEW: My Cards */}
+          {activeTab === 'cards' && (
+            <div className="space-y-6 animate-fade-in">
+              <h2 className="text-2xl font-extrabold text-white tracking-tight">
+                Virtual & Physical Cards Management
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {cards.map((card, i) => (
+                  <div key={card.id || i} className="p-6 rounded-3xl bg-gradient-to-br from-[#262220] to-[#141211] border border-[#3d3733] shadow-xl text-white">
+                    <div className="flex justify-between items-center mb-6">
+                      <span className="font-extrabold tracking-widest">{card.type}</span>
+                      <span className="text-xs text-[#22c55e] font-bold">Active</span>
+                    </div>
+                    <div className="text-3xl font-extrabold mb-4">
+                      ${card.balance?.toLocaleString()}
+                    </div>
+                    <div className="flex justify-between text-xs font-mono text-[#a89d95]">
+                      <span>•••• {card.last4}</span>
+                      <span>Exp: {card.expiry}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+        </main>
+
+        {/* Footer */}
+        <footer className="border-t border-[#24201e] py-6 px-6 text-center text-xs text-[#736a63]">
+          <div className="max-w-[1600px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+            <p>© {new Date().getFullYear()} Expense Tracker Pro with FinAI Agent • Final Year Computer Science Project</p>
+            <p className="flex items-center gap-2">
+              <span>Client: React 19 + Tailwind</span>
+              <span>•</span>
+              <span>Server: Express + AI Engine</span>
+            </p>
           </div>
+        </footer>
 
-          {/* Right Column: Visual Charts (7 cols) */}
-          <div className="lg:col-span-7">
-            <ExpenseChart
-              transactions={transactions}
-              currency={currency}
-              darkMode={darkMode}
-            />
-          </div>
+      </div>
 
-        </div>
+      {/* 3. Floating Interactive Modals */}
 
-        {/* 4. Transaction List with Real-time Filters & Actions */}
-        <div className="mb-12">
-          <TransactionList
-            transactions={transactions}
-            onEdit={(tx) => setEditingTransaction(tx)}
-            onDelete={handleDeleteTransaction}
-            currency={currency}
-            selectedMonth={selectedMonth}
-            setSelectedMonth={setSelectedMonth}
-            selectedCategory={selectedCategory}
-            setSelectedCategory={setSelectedCategory}
-          />
-        </div>
+      {/* AI Copilot Drawer / Modal */}
+      <AiCopilotModal
+        isOpen={isAiOpen}
+        onClose={() => setIsAiOpen(false)}
+        transactions={transactions}
+        budget={budget}
+        totalBalance={totalBalance}
+        totalIncome={totalIncome}
+        totalExpenses={totalExpenses}
+        onAddTransaction={handleAddTransaction}
+        currency={currency}
+        backendOnline={backendOnline}
+      />
 
-      </main>
+      {/* Quick Transfer & Request Modal */}
+      <QuickTransferModal
+        isOpen={Boolean(quickModal)}
+        defaultType={quickModal || 'expense'}
+        onClose={() => setQuickModal(null)}
+        onAddTransaction={handleAddTransaction}
+        currency={currency}
+      />
 
-      {/* Footer */}
-      <footer className="border-t border-slate-200 dark:border-slate-800 py-6 text-center text-xs text-slate-500 dark:text-slate-400">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <p>
-            © {new Date().getFullYear()} Expense Tracker with Chart • Final Year Computer Science Project
-          </p>
-          <p className="flex items-center gap-2">
-            <span>Client: React + Vite + Tailwind CSS</span>
-            <span>•</span>
-            <span>Server: Express REST API + SQLite/JSON</span>
-          </p>
-        </div>
-      </footer>
-
-      {/* Edit Transaction Modal */}
+      {/* Edit Modal */}
       <EditModal
         transaction={editingTransaction}
         isOpen={Boolean(editingTransaction)}

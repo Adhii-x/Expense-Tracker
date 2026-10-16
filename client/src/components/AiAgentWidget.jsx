@@ -1,0 +1,76 @@
+import React from 'react';
+import { Bot, Sparkles, ArrowRight, ShieldCheck, Zap } from 'lucide-react';
+
+export default function AiAgentWidget({ onOpenAiAgent, healthScore = 92 }) {
+  return (
+    <div className="relative rounded-3xl overflow-hidden p-6 sm:p-7 border border-[#ff6b00]/30 shadow-2xl bg-gradient-to-br from-[#2a1708] via-[#1f130b] to-[#120c08] flex flex-col justify-between transition-all group hover:border-[#ff6b00]/60">
+      
+      {/* Background glowing sphere visuals matching reference image */}
+      <div className="absolute -top-12 -right-12 w-48 h-48 bg-[#ff6b00]/25 rounded-full blur-3xl pointer-events-none group-hover:bg-[#ff6b00]/35 transition-all" />
+      <div className="absolute -bottom-8 -left-8 w-36 h-36 bg-amber-500/15 rounded-full blur-2xl pointer-events-none" />
+
+      {/* Decorative 3D spheres outline in corner */}
+      <div className="absolute right-4 bottom-16 opacity-30 pointer-events-none hidden sm:block">
+        <div className="w-24 h-24 rounded-full border border-[#ff6b00]/40 flex items-center justify-center">
+          <div className="w-16 h-16 rounded-full border border-amber-400/30" />
+        </div>
+      </div>
+
+      <div>
+        {/* Top badge */}
+        <div className="flex items-center gap-2 mb-3">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#ff6b00]/20 border border-[#ff6b00]/40 text-[#ff8c33] text-[11px] font-bold uppercase tracking-wider">
+            <Zap className="w-3 h-3 text-[#ff6b00]" />
+            AI Financial Agent
+          </span>
+          <span className="text-[11px] font-bold text-[#22c55e] bg-[#163824] px-2.5 py-0.5 rounded-full border border-[#22c55e]/30">
+            Score: {healthScore}/100
+          </span>
+        </div>
+
+        {/* Headline */}
+        <h3 className="text-xl sm:text-2xl font-extrabold text-white leading-tight mb-2 tracking-tight">
+          Intelligent Copilot <br />
+          Always Watching Your Money
+        </h3>
+
+        {/* Subtitle */}
+        <p className="text-xs sm:text-sm text-[#c4b5aa] leading-relaxed max-w-xs mb-6">
+          Autonomous budgeting, proactive leak detection, and natural language quick-logging.
+        </p>
+
+        {/* User face bubbles matching reference image */}
+        <div className="flex items-center gap-3 mb-6">
+          <div className="flex -space-x-2">
+            <div className="w-8 h-8 rounded-full ring-2 ring-[#2a1708] bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-[10px] font-bold text-white">
+              JD
+            </div>
+            <div className="w-8 h-8 rounded-full ring-2 ring-[#2a1708] bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center text-[10px] font-bold text-white">
+              EL
+            </div>
+            <div className="w-8 h-8 rounded-full ring-2 ring-[#2a1708] bg-gradient-to-tr from-amber-500 to-rose-600 flex items-center justify-center text-[10px] font-bold text-white">
+              ER
+            </div>
+            <div className="w-8 h-8 rounded-full ring-2 ring-[#2a1708] bg-[#ff6b00] flex items-center justify-center text-[10px] font-bold text-white">
+              +4
+            </div>
+          </div>
+          <span className="text-[11px] font-medium text-[#c4b5aa]">
+            Trusted by students worldwide
+          </span>
+        </div>
+      </div>
+
+      {/* Solid White Action Button (matching reference image "Request") */}
+      <button
+        onClick={onOpenAiAgent}
+        className="w-full py-3.5 px-5 rounded-2xl bg-white hover:bg-[#f5eee9] text-[#1a1410] font-extrabold text-xs sm:text-sm shadow-xl flex items-center justify-center gap-2 transition-all transform hover:scale-[1.02] cursor-pointer"
+      >
+        <Sparkles className="w-4 h-4 text-[#ff6b00]" />
+        <span>Ask FinAI Copilot</span>
+        <ArrowRight className="w-4 h-4 text-[#1a1410] ml-1" />
+      </button>
+
+    </div>
+  );
+}

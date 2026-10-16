@@ -1,18 +1,9 @@
 {
   "budget": {
-    "monthlyLimit": 1500,
-    "currency": "USD"
+    "monthlyLimit": 2000,
+    "currency": "INR"
   },
   "transactions": [
-    {
-      "id": "tx-1792140039992-0ee7c",
-      "title": "Final Year Project Materials",
-      "amount": 85,
-      "type": "expense",
-      "category": "Education & Books",
-      "date": "2026-10-16",
-      "notes": "Sensors and components"
-    },
     {
       "id": "tx-1",
       "title": "Campus Bookstore - Textbooks",
