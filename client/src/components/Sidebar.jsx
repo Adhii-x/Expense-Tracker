@@ -10,7 +10,8 @@ import {
   ChevronLeft, 
   ChevronRight, 
   Sparkles,
-  TrendingUp
+  TrendingUp,
+  ShieldCheck
 } from 'lucide-react';
 
 export default function Sidebar({ 
@@ -25,8 +26,9 @@ export default function Sidebar({
 }) {
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutGrid },
-    { id: 'transactions', label: 'Transactions', icon: FileText },
     { id: 'analytics', label: 'Analytics', icon: BarChart2 },
+    { id: 'wellthplan', label: 'WellthPlan 2.0', icon: ShieldCheck, badge: 'CFO' },
+    { id: 'transactions', label: 'Transactions', icon: FileText },
     { id: 'budgets', label: 'Budgets', icon: Wallet },
     { id: 'settings', label: 'Settings', icon: Sliders },
     { id: 'ai', label: 'AI Copilot', icon: Bot, isAi: true, badge: 'AI' }
@@ -101,6 +103,12 @@ export default function Sidebar({
                 {/* White active dot on the right edge matching FINOVA photo */}
                 {!isCollapsed && isActive && (
                   <span className="w-1.5 h-1.5 rounded-full bg-white shadow-sm" />
+                )}
+
+                {!isCollapsed && !isActive && item.badge && (
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#ff6b00]/15 text-[#ff8c33] border border-[#ff6b00]/30 tracking-tight">
+                    {item.badge}
+                  </span>
                 )}
 
                 {isCollapsed && item.badge && (

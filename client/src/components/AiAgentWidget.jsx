@@ -1,7 +1,7 @@
 import React from 'react';
 import { Bot, Sparkles, ArrowRight, ShieldCheck, Zap } from 'lucide-react';
 
-export default function AiAgentWidget({ onOpenAiAgent, healthScore = 92 }) {
+export default function AiAgentWidget({ onOpenAiAgent, healthScore = 92, onNavigateWellthPlan }) {
   return (
     <div className="relative rounded-3xl overflow-hidden p-6 sm:p-7 border border-[#ff6b00]/30 shadow-2xl bg-gradient-to-br from-[#2a1708] via-[#1f130b] to-[#120c08] flex flex-col justify-between transition-all group hover:border-[#ff6b00]/60">
       
@@ -23,7 +23,13 @@ export default function AiAgentWidget({ onOpenAiAgent, healthScore = 92 }) {
             <Zap className="w-3 h-3 text-[#ff6b00]" />
             AI Financial Agent
           </span>
-          <span className="text-[11px] font-bold text-[#22c55e] bg-[#163824] px-2.5 py-0.5 rounded-full border border-[#22c55e]/30">
+          <span 
+            onClick={onNavigateWellthPlan}
+            className={`text-[11px] font-bold text-[#22c55e] bg-[#163824] px-2.5 py-0.5 rounded-full border border-[#22c55e]/30 ${
+              onNavigateWellthPlan ? 'cursor-pointer hover:bg-[#1f4e32] transition-colors' : ''
+            }`}
+            title="WellthPlan 2.0 AI Health Score"
+          >
             Score: {healthScore}/100
           </span>
         </div>

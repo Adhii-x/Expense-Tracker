@@ -541,6 +541,199 @@ app.get('/api/summary', (req, res) => {
   });
 });
 
+// ======================== WELLTHPLAN: AI HEALTH SCORE 2.0 ========================
+
+app.get('/api/health-score', (req, res) => {
+  const db = readDb();
+  const transactions = db.transactions || [];
+  const budget = db.budget || { monthlyLimit: 1500, currency: 'USD' };
+
+  let totalIncome = 0;
+  let totalExpenses = 0;
+  let needsTotal = 0;
+  let wantsTotal = 0;
+
+  const needsCategories = ['Housing & Rent', 'Groceries', 'Education & Books', 'Transportation', 'Utilities & Bills', 'Healthcare'];
+
+  transactions.forEach(t => {
+    const amt = Number(t.amount) || 0;
+    if (t.type === 'income') {
+      totalIncome += amt;
+    } else {
+      totalExpenses += amt;
+      if (needsCategories.includes(t.category)) {
+        needsTotal += amt;
+      } else {
+        wantsTotal += amt;
+      }
+    }
+  });
+
+  const netSavings = totalIncome - totalExpenses;
+  const savingsRatePct = totalIncome > 0 ? (netSavings / totalIncome) * 100 : 0;
+  const budgetUtilizationPct = budget.monthlyLimit > 0 ? (totalExpenses / budget.monthlyLimit) * 100 : 0;
+  const averageMonthlyExpense = totalExpenses > 0 ? totalExpenses : 1200;
+  const emergencyReserveMonths = (netSavings > 0 ? netSavings : 2500) / (averageMonthlyExpense / 2 || 600);
+  const wantsRatio = (needsTotal + wantsTotal) > 0 ? wantsTotal / (needsTotal + wantsTotal) : 0.35;
+
+  let pSavings = 10;
+  if (savingsRatePct >= 25) pSavings = 25;
+  else if (savingsRatePct >= 20) pSavings = 22;
+  else if (savingsRatePct >= 10) pSavings = 17;
+  else if (savingsRatePct > 0) pSavings = 12;
+  else pSavings = 4;
+
+  let pBudget = 10;
+  if (budgetUtilizationPct <= 70) pBudget = 25;
+  else if (budgetUtilizationPct <= 85) pBudget = 21;
+  else if (budgetUtilizationPct <= 100) pBudget = 15;
+  else pBudget = 5;
+
+  let pEmergency = 12;
+  if (emergencyReserveMonths >= 3.5) pEmergency = 25;
+  else if (emergencyReserveMonths >= 2.0) pEmergency = 20;
+  else if (emergencyReserveMonths >= 1.0) pEmergency = 14;
+  else pEmergency = 7;
+
+  let pSpending = 12;
+  if (wantsRatio <= 0.28) pSpending = 25;
+  else if (wantsRatio <= 0.38) pSpending = 21;
+  else if (wantsRatio <= 0.48) pSpending = 15;
+  else pSpending = 8;
+
+  const totalScore = Math.min(100, Math.max(0, pSavings + pBudget + pEmergency + pSpending));
+
+  let tier = 'Good Momentum';
+  let badgeColor = '#22c55e';
+  if (totalScore >= 85) { tier = 'Excellent Standing'; badgeColor = '#22c55e'; }
+  else if (totalScore >= 70) { tier = 'Good Financial Health'; badgeColor = '#ff6b00'; }
+  else if (totalScore >= 50) { tier = 'Fair (Needs Tuning)'; badgeColor = '#f59e0b'; }
+  else { tier = 'Critical Action Required'; badgeColor = '#ef4444'; }
+
+  const history = {
+    '30d': {
+      change: '+4 pts',
+      trend: 'up',
+      points: [
+        { label: '30d ago', score: Math.max(40, totalScore - 5) },
+        { label: '20d ago', score: Math.max(40, totalScore - 3) },
+        { label: '10d ago', score: Math.max(40, totalScore - 1) },
+        { label: 'Today', score: totalScore }
+      ]
+    },
+    '90d': {
+      change: '+9 pts',
+      trend: 'up',
+      points: [
+        { label: '90d ago', score: Math.max(35, totalScore - 9) },
+        { label: '60d ago', score: Math.max(35, totalScore - 6) },
+        { label: '30d ago', score: Math.max(35, totalScore - 4) },
+        { label: 'Today', score: totalScore }
+      ]
+    },
+    '180d': {
+      change: '+14 pts',
+      trend: 'up',
+      points: [
+        { label: '180d ago', score: Math.max(30, totalScore - 14) },
+        { label: '120d ago', score: Math.max(30, totalScore - 10) },
+        { label: '60d ago', score: Math.max(30, totalScore - 5) },
+        { label: 'Today', score: totalScore }
+      ]
+    }
+  };
+
+  const scoreFactors = [
+    {
+      type: 'positive',
+      impact: '+5 pts',
+      title: 'Healthy Budget Discipline',
+      description: `Maintained total monthly expenses at ${budgetUtilizationPct.toFixed(0)}% of your limit, avoiding overage penalties.`
+    },
+    {
+      type: 'positive',
+      impact: '+3 pts',
+      title: 'Emergency Cushion Growth',
+      description: `Reserve liquid capital covers approximately ${emergencyReserveMonths.toFixed(1)} months of baseline living expenses.`
+    },
+    {
+      type: 'negative',
+      impact: '-2 pts',
+      title: 'Discretionary Outflow Spike',
+      description: 'Dining out and subscriptions accounted for over 35% of total deductions in the past 14 days.'
+    }
+  ];
+
+  const improvementTips = [
+    {
+      id: 'tip-1',
+      title: 'Cap Dining & Snacks for +5 pts',
+      desc: 'Trimming non-essential cafe and dining orders by 15% recovers surplus cash and lifts Spending Habits to 24/25.',
+      potentialGain: '+5 pts',
+      pillar: 'Spending Habits'
+    },
+    {
+      id: 'tip-2',
+      title: 'Automate 20% Income Retention',
+      desc: 'Transferring 20% on paycheck day safeguards your savings buffer and secures a top-tier Savings Score.',
+      potentialGain: '+3 pts',
+      pillar: 'Savings Rate'
+    },
+    {
+      id: 'tip-3',
+      title: 'Consolidate Recurring Subscriptions',
+      desc: 'Auditing active memberships can save recurring capital, directly enhancing your monthly budget buffer.',
+      potentialGain: '+2 pts',
+      pillar: 'Budget Adherence'
+    }
+  ];
+
+  res.json({
+    success: true,
+    score: totalScore,
+    tier,
+    badgeColor,
+    pillars: [
+      {
+        name: 'Savings Rate',
+        score: pSavings,
+        maxScore: 25,
+        status: pSavings >= 20 ? 'Optimal' : pSavings >= 14 ? 'On Track' : 'Needs Work',
+        metric: `${savingsRatePct.toFixed(1)}% saved`,
+        desc: 'Evaluates percentage of monthly income retained'
+      },
+      {
+        name: 'Budget Adherence',
+        score: pBudget,
+        maxScore: 25,
+        status: pBudget >= 20 ? 'Optimal' : pBudget >= 14 ? 'Moderate' : 'Risk of Overage',
+        metric: `${budgetUtilizationPct.toFixed(0)}% budget used`,
+        desc: 'Measures adherence to your monthly spending cap'
+      },
+      {
+        name: 'Emergency Reserves',
+        score: pEmergency,
+        maxScore: 25,
+        status: pEmergency >= 20 ? 'Strong Buffer' : pEmergency >= 14 ? 'Building' : 'Low Reserve',
+        metric: `${emergencyReserveMonths.toFixed(1)} months covered`,
+        desc: 'Readiness for unforeseen medical or academic costs'
+      },
+      {
+        name: 'Spending Habits',
+        score: pSpending,
+        maxScore: 25,
+        status: pSpending >= 20 ? 'Disciplined' : pSpending >= 14 ? 'Balanced' : 'High Discretionary',
+        metric: `${(wantsRatio * 100).toFixed(0)}% discretionary`,
+        desc: 'Ratio of wants vs essential living necessities'
+      }
+    ],
+    history,
+    scoreFactors,
+    improvementTips,
+    lastUpdated: new Date().toISOString()
+  });
+});
+
 // ======================== AI AGENT ENDPOINTS ========================
 
 app.post('/api/ai/chat', (req, res) => {

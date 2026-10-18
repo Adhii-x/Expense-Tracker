@@ -52,6 +52,7 @@ export default function TopHeader({
     dashboard: 'Dashboard',
     transactions: 'Transactions',
     analytics: 'Analytics',
+    wellthplan: 'WellthPlan 2.0',
     budgets: 'Budgets',
     settings: 'Settings',
     ai: 'FinAI Copilot'

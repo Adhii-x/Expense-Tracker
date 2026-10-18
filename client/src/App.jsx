@@ -12,6 +12,7 @@ import ReceiptScannerModal from './components/ReceiptScannerModal';
 import CommandPalette from './components/CommandPalette';
 import EditModal from './components/EditModal';
 import Toast from './components/Toast';
+import WellthPlanHealthScore from './components/WellthPlanHealthScore';
 
 import {
   testBackendConnection,
@@ -29,7 +30,8 @@ import {
   fetchSubscriptionsApi,
   createSubscriptionApi,
   deleteSubscriptionApi,
-  seedDemoDataApi
+  seedDemoDataApi,
+  fetchHealthScoreApi
 } from './services/api';
 import { downloadCsv } from './utils';
 
@@ -48,6 +50,7 @@ export default function App() {
   const [subscriptions, setSubscriptions] = useState([]);
   const [budget, setBudget] = useState({ monthlyLimit: 25000, currency: 'INR' });
   const [backendOnline, setBackendOnline] = useState(false);
+  const [healthData, setHealthData] = useState(null);
 
   // Modals state
   const [isAiOpen, setIsAiOpen] = useState(false);
@@ -228,6 +231,29 @@ export default function App() {
     };
   }, [transactions]);
 
+  // Load / recalculate WellthPlan AI Financial Health Score 2.0
+  useEffect(() => {
+    let isSubscribed = true;
+    async function updateHealth() {
+      try {
+        const data = await fetchHealthScoreApi(backendOnline, {
+          totalBalance,
+          totalIncome,
+          totalExpenses,
+          transactions,
+          budget
+        });
+        if (isSubscribed && data) {
+          setHealthData(data);
+        }
+      } catch (err) {
+        console.error('Error fetching health score:', err);
+      }
+    }
+    updateHealth();
+    return () => { isSubscribed = false; };
+  }, [backendOnline, transactions, budget, totalBalance, totalIncome, totalExpenses]);
+
   // Expenses for the currently active/selected month
   const currentMonthExpenses = useMemo(() => {
     const targetMonth = selectedMonth !== 'All' 
@@ -287,6 +313,16 @@ export default function App() {
               totalIncome={totalIncome}
               totalExpenses={totalExpenses}
               totalBalance={totalBalance}
+              healthData={healthData}
+              onNavigateWellthPlan={() => setActiveTab('wellthplan')}
+            />
+          )}
+
+          {/* VIEW: WellthPlan 2.0 (AI Financial Health Score & Personal CFO) */}
+          {activeTab === 'wellthplan' && (
+            <WellthPlanHealthScore
+              healthData={healthData}
+              onOpenAiAgent={() => setIsAiOpen(true)}
             />
           )}
 
@@ -318,6 +354,8 @@ export default function App() {
               onRequestClick={() => setQuickModal('income')}
               onViewAllClick={() => setActiveTab('transactions')}
               onOpenAiAgent={() => setIsAiOpen(true)}
+              healthScore={healthData?.score}
+              onNavigateWellthPlan={() => setActiveTab('wellthplan')}
             />
           )}
 

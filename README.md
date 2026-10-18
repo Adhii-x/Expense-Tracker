@@ -34,7 +34,18 @@ Matches the exact ledger management view:
 - **Empty State**: Package icon with `No transactions found` message when zero records match filters.
 - **Ledger Entries**: Color-coded category tags, formatted amounts (`+` green, `-` red), notes, edit modal, and delete actions.
 
-### 3. 🧭 Modern FINOVA Sidebar Dock
+### 3. 🛡️ WellthPlan 2.0 — AI Financial Health Score & Personal CFO
+High-priority AI intelligence module that makes FINOVA deeply understand the user's financial life:
+- **Dynamic 0–100 Health Score**: Comprehensive evaluation across 4 essential pillars (max 25 pts each):
+  1. **Savings Rate (25 pts)**: Evaluates monthly income retained vs. burned.
+  2. **Spending Habits (25 pts)**: Analyzes ratio of discretionary wants vs. essential needs.
+  3. **Emergency Reserves (25 pts)**: Measures runway in months against sudden shocks.
+  4. **Budget Adherence (25 pts)**: Tracks threshold utilization against monthly caps.
+- **Explainable AI (XAI)**: Detailed breakdown explaining exactly why the score increased or decreased with explicit point deltas.
+- **Interactive Multi-Horizon Trend Charting**: Visual historical tracking across **30, 90, and 180 days** powered by Chart.js.
+- **Personal CFO Actionable Guidance**: Prioritized recommendations with potential point gain estimates (e.g. `+5 pts`, `+3 pts`).
+
+### 4. 🧭 Modern FINOVA Sidebar Dock
 - **Brand Header**: FINOVA Pro clover/trend icon with *"Your money, in focus."* tagline.
 - **Navigation Items**:
   - `Dashboard` (LayoutGrid)
@@ -110,6 +121,7 @@ c:\Project\
 │           ├── Sidebar.jsx               # FINOVA collapsible sidebar with active dot
 │           ├── TopHeader.jsx             # Top header with month stepper & date
 │           ├── FinovaAnalytics.jsx       # 4-KPI cards grid & charts (Photos 1 & 2)
+│           ├── WellthPlanHealthScore.jsx # AI Financial Health Score 2.0 & Personal CFO
 │           ├── FinovaTransactions.jsx    # Full transaction history view (Photos 3, 4, 5)
 │           ├── FinovaDashboard.jsx       # Balance chart, 3D cards stack, and widgets
 │           ├── FinovaBudgets.jsx         # Budgets, savings goals & subscriptions

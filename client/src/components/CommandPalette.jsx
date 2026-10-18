@@ -13,7 +13,8 @@ import {
   CreditCard, 
   Target,
   ArrowRight,
-  X
+  X,
+  ShieldCheck
 } from 'lucide-react';
 
 export default function CommandPalette({
@@ -49,6 +50,14 @@ export default function CommandPalette({
       icon: Sparkles,
       color: 'text-[#ff6b00]',
       action: () => { onClose(); onOpenAiAgent(); }
+    },
+    {
+      id: 'wellthplan',
+      title: 'WellthPlan 2.0 (AI Financial Health Score)',
+      subtitle: 'Audit 0-100 score, 4 core pillars, trends & Personal CFO tips',
+      icon: ShieldCheck,
+      color: 'text-emerald-400',
+      action: () => { onClose(); setActiveTab('wellthplan'); }
     },
     {
       id: 'scan-receipt',

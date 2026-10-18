@@ -17,7 +17,9 @@ export default function FinovaDashboard({
   onTransferClick,
   onRequestClick,
   onViewAllClick,
-  onOpenAiAgent
+  onOpenAiAgent,
+  healthScore,
+  onNavigateWellthPlan
 }) {
   return (
     <div className="space-y-6 animate-fade-in">
@@ -54,7 +56,8 @@ export default function FinovaDashboard({
         <div className="lg:col-span-4">
           <AiAgentWidget
             onOpenAiAgent={onOpenAiAgent}
-            healthScore={94}
+            healthScore={healthScore || 92}
+            onNavigateWellthPlan={onNavigateWellthPlan}
           />
         </div>
 

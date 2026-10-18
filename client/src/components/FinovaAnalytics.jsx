@@ -22,7 +22,9 @@ export default function FinovaAnalytics({
   selectedMonth,
   totalIncome,
   totalExpenses,
-  totalBalance
+  totalBalance,
+  healthData,
+  onNavigateWellthPlan
 }) {
   // Current month transactions based on selectedMonth
   const monthTransactions = useMemo(() => {
@@ -85,6 +87,52 @@ export default function FinovaAnalytics({
           Thoughtful, data-driven insights for {monthDisplay}.
         </p>
       </div>
+
+      {/* WellthPlan 2.0 Feature Banner */}
+      {healthData && (
+        <div 
+          onClick={onNavigateWellthPlan}
+          className="p-5 sm:p-6 rounded-3xl bg-gradient-to-r from-[#1c1918] via-[#1a1614] to-[#26180e] border border-[#ff6b00]/30 hover:border-[#ff6b00]/70 shadow-2xl transition-all cursor-pointer group flex flex-col md:flex-row md:items-center justify-between gap-4"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-[#ff6b00]/20 border border-[#ff6b00]/40 flex items-center justify-center text-[#ff6b00] group-hover:scale-110 transition-transform shrink-0 shadow-lg shadow-[#ff6b00]/20">
+              <ShieldCheck className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#ff6b00]">
+                  WELLTHPLAN 2.0 • PERSONAL CFO
+                </span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#22c55e]/20 text-[#22c55e] border border-[#22c55e]/30">
+                  {healthData.tier || 'Strong'}
+                </span>
+              </div>
+              <h3 className="text-base sm:text-lg font-extrabold text-white">
+                Financial Health Score: <span className="text-[#ff6b00] font-mono">{healthData.score}/100</span>
+              </h3>
+              <p className="text-xs text-[#8c827a] mt-0.5">
+                Dynamic 4-pillar analysis: Savings, Spending, Reserves, and Budget Adherence.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0 self-end md:self-center">
+            <div className="hidden sm:flex flex-col text-right">
+              <span className="text-[11px] text-[#8c827a]">30-Day Trend</span>
+              <span className="text-xs font-bold text-[#22c55e]">
+                {healthData.history?.['30d']?.delta || '+4 pts (Improving)'}
+              </span>
+            </div>
+            <button
+              type="button"
+              className="px-4 py-2 rounded-xl bg-[#ff6b00] hover:bg-[#ea580c] text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-md shadow-[#ff6b00]/20 group-hover:translate-x-0.5"
+            >
+              <span>Explore Score Breakdown</span>
+              <ArrowUpRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 4 KPI Cards Grid (Matching the exact 2x2 layout from the user's photo!) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
