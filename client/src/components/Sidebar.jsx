@@ -59,7 +59,7 @@ export default function Sidebar({
             <div className="leading-tight">
               <div className="flex items-center gap-1.5">
                 <span className="font-extrabold text-base text-white tracking-tight">
-                  FINOVA
+                  Expense Tracker
                 </span>
                 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#ff6b00]/20 text-[#ff8c33] border border-[#ff6b00]/30">
                   PRO
@@ -100,7 +100,7 @@ export default function Sidebar({
                   {!isCollapsed && <span>{item.label}</span>}
                 </div>
 
-                {/* White active dot on the right edge matching FINOVA photo */}
+                {/* White active dot on the right edge matching reference photo */}
                 {!isCollapsed && isActive && (
                   <span className="w-1.5 h-1.5 rounded-full bg-white shadow-sm" />
                 )}
@@ -184,7 +184,7 @@ export default function Sidebar({
 
         {!isCollapsed && (
           <p className="text-[10px] text-[#736a63] text-center pt-1">
-            FINOVA © 2026 • Made with care
+            Expense Tracker © 2026 • Made with care
           </p>
         )}
 

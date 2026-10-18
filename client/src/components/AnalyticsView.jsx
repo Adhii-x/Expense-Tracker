@@ -16,7 +16,7 @@ import ExpenseChart from './ExpenseChart';
 import BudgetBreakdown503020 from './BudgetBreakdown503020';
 import { formatCurrency, formatMonthYear } from '../utils';
 
-export default function FinovaAnalytics({
+export default function AnalyticsView({
   transactions,
   currency,
   selectedMonth,
@@ -32,7 +32,7 @@ export default function FinovaAnalytics({
     return transactions.filter(t => t.date && t.date.startsWith(selectedMonth));
   }, [transactions, selectedMonth]);
 
-  // Calculations for the 4 KPI cards shown in FINOVA photo
+  // Calculations for the 4 KPI cards shown in reference photo
   const metrics = useMemo(() => {
     let income = 0;
     let expense = 0;

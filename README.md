@@ -1,4 +1,4 @@
-# 📊 FINOVA — Expense Tracker Pro with FinAI Copilot
+# 📊 Expense Tracker Pro — AI Financial Copilot
 
 [![React](https://img.shields.io/badge/React-19.0-61dafb.svg?style=flat-square&logo=react)](https://react.dev/)
 [![Vite](https://img.shields.io/badge/Vite-6.0-646CFF.svg?style=flat-square&logo=vite)](https://vitejs.dev/)
@@ -7,11 +7,11 @@
 [![Chart.js](https://img.shields.io/badge/Chart.js-4.4-FF6384.svg?style=flat-square&logo=chart.js)](https://www.chartjs.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 
-> **FINOVA — Your money, in focus.** An ultra-modern, luxury dark fintech dashboard engineered for students and young professionals. Features an interactive **AI Financial Copilot**, live 4-KPI analytics grid, month-stepper timeline, 3D cards, target savings goals, AI receipt vision OCR scanner, and full transaction history.
+> **Expense Tracker Pro — Your money, in focus.** An ultra-modern, luxury dark fintech dashboard engineered for students and young professionals. Features an interactive **AI Financial Copilot**, live 4-KPI analytics grid, month-stepper timeline, 3D cards, target savings goals, AI receipt vision OCR scanner, and full transaction history.
 
 ---
 
-## 🎯 FINOVA Modules & Architecture (As Per Reference UI)
+## 🎯 Modules & Architecture
 
 ### 1. 📊 Financial Analytics Module (`UNDERSTAND YOUR MONEY`)
 Matches the exact 4-KPI analytics grid and data visualization layout:
@@ -35,7 +35,7 @@ Matches the exact ledger management view:
 - **Ledger Entries**: Color-coded category tags, formatted amounts (`+` green, `-` red), notes, edit modal, and delete actions.
 
 ### 3. 🛡️ WellthPlan 2.0 — AI Financial Health Score & Personal CFO
-High-priority AI intelligence module that makes FINOVA deeply understand the user's financial life:
+High-priority AI intelligence module that makes Expense Tracker deeply understand the user's financial life:
 - **Dynamic 0–100 Health Score**: Comprehensive evaluation across 4 essential pillars (max 25 pts each):
   1. **Savings Rate (25 pts)**: Evaluates monthly income retained vs. burned.
   2. **Spending Habits (25 pts)**: Analyzes ratio of discretionary wants vs. essential needs.
@@ -45,8 +45,8 @@ High-priority AI intelligence module that makes FINOVA deeply understand the use
 - **Interactive Multi-Horizon Trend Charting**: Visual historical tracking across **30, 90, and 180 days** powered by Chart.js.
 - **Personal CFO Actionable Guidance**: Prioritized recommendations with potential point gain estimates (e.g. `+5 pts`, `+3 pts`).
 
-### 4. 🧭 Modern FINOVA Sidebar Dock
-- **Brand Header**: FINOVA Pro clover/trend icon with *"Your money, in focus."* tagline.
+### 4. 🧭 Modern Sidebar Dock
+- **Brand Header**: Expense Tracker Pro trend icon with *"Your money, in focus."* tagline.
 - **Navigation Items**:
   - `Dashboard` (LayoutGrid)
   - `Transactions` (FileText)
@@ -118,14 +118,14 @@ c:\Project\
 │       ├── utils.js          # Currency formatters, date formatters, CSV exporter
 │       ├── services/api.js   # Dual-mode API client + AI Agent integration
 │       └── components/
-│           ├── Sidebar.jsx               # FINOVA collapsible sidebar with active dot
+│           ├── Sidebar.jsx               # Collapsible navigation sidebar with active dot
 │           ├── TopHeader.jsx             # Top header with month stepper & date
-│           ├── FinovaAnalytics.jsx       # 4-KPI cards grid & charts (Photos 1 & 2)
+│           ├── AnalyticsView.jsx         # 4-KPI cards grid & charts (Photos 1 & 2)
 │           ├── WellthPlanHealthScore.jsx # AI Financial Health Score 2.0 & Personal CFO
-│           ├── FinovaTransactions.jsx    # Full transaction history view (Photos 3, 4, 5)
-│           ├── FinovaDashboard.jsx       # Balance chart, 3D cards stack, and widgets
-│           ├── FinovaBudgets.jsx         # Budgets, savings goals & subscriptions
-│           ├── FinovaSettings.jsx        # Preferences, demo data reload & CSV export
+│           ├── TransactionsView.jsx      # Full transaction history view (Photos 3, 4, 5)
+│           ├── DashboardView.jsx         # Balance chart, 3D cards stack, and widgets
+│           ├── BudgetsView.jsx           # Budgets, savings goals & subscriptions
+│           ├── SettingsView.jsx          # Preferences, demo data reload & CSV export
 │           ├── BudgetBreakdown503020.jsx # 50/30/20 budget framework analysis
 │           ├── AiCopilotModal.jsx        # AI Agent chat with voice dictation
 │           ├── ReceiptScannerModal.jsx   # AI OCR receipt scanning simulation
@@ -154,7 +154,7 @@ npm run dev
 ```
 
 This starts:
-- 🌐 **Backend API:** `http://localhost:5000` (Express REST server + FinAI API)
+- 🌐 **Backend API:** `http://localhost:5000` (Express REST server + AI API)
 - 💻 **Frontend App:** `http://localhost:5173` (Vite dev server)
 
 Open your browser at **`http://localhost:5173`**.
@@ -166,7 +166,7 @@ Open your browser at **`http://localhost:5173`**.
 1. Push your repository to **GitHub**:
    ```bash
    git add .
-   git commit -m "Update FINOVA full modules"
+   git commit -m "Update Expense Tracker project"
    git push origin main
    ```
 2. Log into [Vercel](https://vercel.com/) and click **"Add New Project"**.

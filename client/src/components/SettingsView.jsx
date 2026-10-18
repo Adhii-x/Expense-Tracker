@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { CURRENCIES } from '../constants';
 
-export default function FinovaSettings({
+export default function SettingsView({
   currency,
   setCurrency,
   onResetDemo,
@@ -116,10 +116,10 @@ export default function FinovaSettings({
         </div>
         <div className="text-xs text-[#a89d95] leading-relaxed space-y-1">
           <h4 className="font-bold text-white text-sm">
-            FINOVA • Final Year Computer Science Project
+            Expense Tracker • Final Year Computer Science Project
           </h4>
           <p>
-            Full-stack expense tracking & data visual analytics platform built with React 19, Vite, Tailwind CSS, Chart.js, Express.js REST API, and FinAI Copilot Reasoning.
+            Full-stack expense tracking & data visual analytics platform built with React 19, Vite, Tailwind CSS, Chart.js, Express.js REST API, and AI Copilot Reasoning.
           </p>
           <p className="text-[11px] text-[#736a63] pt-1">
             Engineered with dual persistence (Browser LocalStorage + REST backend fallback).

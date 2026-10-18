@@ -5,7 +5,7 @@ import AiAgentWidget from './AiAgentWidget';
 import InvestmentsBarChart from './InvestmentsBarChart';
 import BudgetTracker from './BudgetTracker';
 
-export default function FinovaDashboard({
+export default function DashboardView({
   totalBalance,
   cards,
   transactions,

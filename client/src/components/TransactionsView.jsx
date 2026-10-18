@@ -15,7 +15,7 @@ import {
 import { CATEGORY_COLORS, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../constants';
 import { formatCurrency, formatDate } from '../utils';
 
-export default function FinovaTransactions({
+export default function TransactionsView({
   transactions,
   onEdit,
   onDelete,

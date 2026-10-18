@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Sidebar from './components/Sidebar';
 import TopHeader from './components/TopHeader';
-import FinovaDashboard from './components/FinovaDashboard';
-import FinovaTransactions from './components/FinovaTransactions';
-import FinovaAnalytics from './components/FinovaAnalytics';
-import FinovaBudgets from './components/FinovaBudgets';
-import FinovaSettings from './components/FinovaSettings';
+import DashboardView from './components/DashboardView';
+import TransactionsView from './components/TransactionsView';
+import AnalyticsView from './components/AnalyticsView';
+import BudgetsView from './components/BudgetsView';
+import SettingsView from './components/SettingsView';
 import QuickTransferModal from './components/QuickTransferModal';
 import AiCopilotModal from './components/AiCopilotModal';
 import ReceiptScannerModal from './components/ReceiptScannerModal';
@@ -272,7 +272,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#0e0d0d] text-[#e6ded8] flex flex-row overflow-x-hidden font-sans antialiased selection:bg-[#ff6b00] selection:text-white">
       
-      {/* 1. Left Vertical Sidebar (Matching FINOVA photo design) */}
+      {/* 1. Left Vertical Sidebar (Matching reference photo design) */}
       <Sidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -287,7 +287,7 @@ export default function App() {
       {/* 2. Main Content Canvas */}
       <div className="flex-1 flex flex-col min-w-0">
         
-        {/* Top Header Navigation (Matching FINOVA photo with date subtitle, search, month stepper, + Add transaction, and user avatar T) */}
+        {/* Top Header Navigation (Matching reference photo with date subtitle, search, month stepper, + Add transaction, and user avatar T) */}
         <TopHeader
           activeTab={activeTab}
           selectedMonth={selectedMonth}
@@ -306,7 +306,7 @@ export default function App() {
           
           {/* VIEW: Analytics Page (Matching Photos 1 & 2) */}
           {activeTab === 'analytics' && (
-            <FinovaAnalytics
+            <AnalyticsView
               transactions={transactions}
               currency={currency}
               selectedMonth={selectedMonth}
@@ -328,7 +328,7 @@ export default function App() {
 
           {/* VIEW: Transactions History (Matching Photos 3, 4, 5) */}
           {activeTab === 'transactions' && (
-            <FinovaTransactions
+            <TransactionsView
               transactions={transactions}
               onEdit={(tx) => setEditingTransaction(tx)}
               onDelete={handleDeleteTransaction}
@@ -341,7 +341,7 @@ export default function App() {
 
           {/* VIEW: Dashboard */}
           {activeTab === 'dashboard' && (
-            <FinovaDashboard
+            <DashboardView
               totalBalance={totalBalance}
               cards={cards}
               transactions={transactions}
@@ -361,7 +361,7 @@ export default function App() {
 
           {/* VIEW: Budgets, Savings Goals & Subscriptions */}
           {activeTab === 'budgets' && (
-            <FinovaBudgets
+            <BudgetsView
               currentMonthExpenses={currentMonthExpenses}
               budget={budget}
               onSaveBudget={handleSaveBudget}
@@ -379,7 +379,7 @@ export default function App() {
 
           {/* VIEW: Settings */}
           {activeTab === 'settings' && (
-            <FinovaSettings
+            <SettingsView
               currency={currency}
               setCurrency={setCurrency}
               onResetDemo={handleResetDemo}
@@ -394,7 +394,7 @@ export default function App() {
         {/* Footer */}
         <footer className="border-t border-[#24201e] py-5 px-6 text-center text-xs text-[#736a63]">
           <div className="max-w-[1600px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
-            <p>FINOVA • Expense Tracker Pro with FinAI Copilot • Final Year Computer Science Project</p>
+            <p>Expense Tracker Pro with AI Copilot • Final Year Computer Science Project</p>
             <p className="flex items-center gap-2">
               <span>React 19 + Tailwind CSS</span>
               <span>•</span>

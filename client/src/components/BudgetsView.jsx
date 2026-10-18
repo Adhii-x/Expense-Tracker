@@ -3,7 +3,7 @@ import BudgetTracker from './BudgetTracker';
 import SavingsGoals from './SavingsGoals';
 import SubscriptionsWidget from './SubscriptionsWidget';
 
-export default function FinovaBudgets({
+export default function BudgetsView({
   currentMonthExpenses,
   budget,
   onSaveBudget,
