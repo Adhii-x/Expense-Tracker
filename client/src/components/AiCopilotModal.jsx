@@ -10,7 +10,9 @@ import {
   DollarSign, 
   AlertCircle,
   Lightbulb,
-  PlusCircle
+  PlusCircle,
+  Mic,
+  MicOff
 } from 'lucide-react';
 import { askAiAgentApi, parseNaturalLanguageTransactionApi } from '../services/api';
 
@@ -29,11 +31,12 @@ export default function AiCopilotModal({
   if (!isOpen) return null;
 
   const [input, setInput] = useState('');
+  const [isListening, setIsListening] = useState(false);
   const [messages, setMessages] = useState([
     {
       id: 'm-1',
       sender: 'ai',
-      text: `👋 Hello Ethan! I am your **FinAI Financial Agent**.\n\nI have analyzed your **${transactions.length} recorded transactions**. Your financial health score is **${Math.min(100, Math.max(35, Math.round((totalBalance / (totalIncome || 1)) * 100 + 42)))}/100**.\n\nAsk me how to optimize your savings, predict next month's cashflow, or type natural language like *"Spent $45 on groceries today"* to automatically log transactions!`,
+      text: `👋 Hello Ethan! I am your **FinAI Financial Agent**.\n\nI have analyzed your **${transactions.length} recorded transactions**. Your financial health score is **${Math.min(100, Math.max(35, Math.round((totalBalance / (totalIncome || 1)) * 100 + 42)))}/100**.\n\nAsk me how to optimize your savings, predict next month's cashflow, or type / speak natural language like *"Spent $45 on groceries today"* to automatically log transactions!`,
       parsedTx: null
     }
   ]);
@@ -55,6 +58,42 @@ export default function AiCopilotModal({
     'Spent $38.50 on campus groceries'
   ];
 
+  // Speech Recognition (Voice Input)
+  const toggleVoiceInput = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert('Voice recognition is not supported in this browser. Please use Chrome or Edge.');
+      return;
+    }
+
+    if (isListening) {
+      setIsListening(false);
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'en-US';
+      recognition.continuous = false;
+      recognition.interimResults = false;
+
+      recognition.onstart = () => setIsListening(true);
+      recognition.onend = () => setIsListening(false);
+      recognition.onerror = () => setIsListening(false);
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        if (transcript) {
+          setInput(transcript);
+        }
+      };
+
+      recognition.start();
+    } catch (e) {
+      setIsListening(false);
+    }
+  };
+
   const handleSend = async (textToSend) => {
     const query = (textToSend || input).trim();
     if (!query) return;
@@ -65,7 +104,6 @@ export default function AiCopilotModal({
     setLoading(true);
 
     try {
-      // Check if user is asking to add or record an expense/income via natural language
       const isNaturalLog = /(spent|paid|bought|received|earned|got paid|deposit|purchase)/i.test(query) && /\d+/.test(query);
 
       let parsed = null;
@@ -73,7 +111,6 @@ export default function AiCopilotModal({
         parsed = await parseNaturalLanguageTransactionApi(query, backendOnline);
       }
 
-      // Query AI Agent reasoning
       const aiResponse = await askAiAgentApi(
         query,
         { totalBalance, totalIncome, totalExpenses, transactions, budget },
@@ -139,7 +176,7 @@ export default function AiCopilotModal({
 
           <button
             onClick={onClose}
-            className="p-2 rounded-xl text-[#8c827a] hover:text-white hover:bg-[#24201e] transition-colors"
+            className="p-2 rounded-xl text-[#8c827a] hover:text-white hover:bg-[#24201e] transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -151,7 +188,7 @@ export default function AiCopilotModal({
             <button
               key={idx}
               onClick={() => handleSend(p)}
-              className="px-3 py-1.5 rounded-xl bg-[#201d1b] hover:bg-[#2a2624] text-[11px] font-medium text-[#c4b5aa] hover:text-white border border-[#2e2a27] whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0"
+              className="px-3 py-1.5 rounded-xl bg-[#201d1b] hover:bg-[#2a2624] text-[11px] font-medium text-[#c4b5aa] hover:text-white border border-[#2e2a27] whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
             >
               <Sparkles className="w-3 h-3 text-[#ff6b00]" />
               <span>{p}</span>
@@ -184,7 +221,6 @@ export default function AiCopilotModal({
                     {m.text}
                   </div>
 
-                  {/* Interactive Parsed Transaction Action Card */}
                   {m.parsedTx && (
                     <div className="mt-3 p-3 rounded-xl bg-[#26211e] border border-[#ff6b00]/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div>
@@ -201,7 +237,7 @@ export default function AiCopilotModal({
 
                       <button
                         onClick={() => handleApplyParsed(m.parsedTx)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#22c55e] hover:bg-[#16a34a] text-black font-extrabold text-xs shadow-md transition-all self-start sm:self-auto"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#22c55e] hover:bg-[#16a34a] text-black font-extrabold text-xs shadow-md transition-all self-start sm:self-auto cursor-pointer"
                       >
                         <PlusCircle className="w-3.5 h-3.5" />
                         <span>Add to Ledger</span>
@@ -209,14 +245,13 @@ export default function AiCopilotModal({
                     </div>
                   )}
 
-                  {/* Suggested action buttons */}
                   {m.suggestedActions && m.suggestedActions.length > 0 && (
                     <div className="mt-3 pt-2 border-t border-[#2d2825] flex flex-wrap gap-1.5">
                       {m.suggestedActions.map((act, i) => (
                         <button
                           key={i}
                           onClick={() => handleSend(act)}
-                          className="px-2.5 py-1 rounded-lg bg-[#262220] hover:bg-[#332e2b] text-[10px] font-semibold text-[#ff8c33] border border-[#3b3531] transition-all"
+                          className="px-2.5 py-1 rounded-lg bg-[#262220] hover:bg-[#332e2b] text-[10px] font-semibold text-[#ff8c33] border border-[#3b3531] transition-all cursor-pointer"
                         >
                           {act}
                         </button>
@@ -251,7 +286,7 @@ export default function AiCopilotModal({
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input Bar */}
+        {/* Input Bar with Voice Mic Button */}
         <div className="p-4 bg-[#1a1715] border-t border-[#292523]">
           <form
             onSubmit={(e) => {
@@ -264,10 +299,27 @@ export default function AiCopilotModal({
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask FinAI or type: 'Spent $45 on groceries'..."
-              className="flex-1 bg-[#201d1b] border border-[#2e2a27] focus:border-[#ff6b00] rounded-2xl px-4 py-3 text-xs sm:text-sm text-white placeholder-[#736a63] focus:outline-none transition-all"
+              placeholder={isListening ? "Listening... Speak now..." : "Ask FinAI or speak: 'Spent $45 on groceries'..."}
+              className={`flex-1 bg-[#201d1b] border rounded-2xl px-4 py-3 text-xs sm:text-sm text-white placeholder-[#736a63] focus:outline-none transition-all ${
+                isListening ? 'border-[#ff6b00] ring-2 ring-[#ff6b00]/30 animate-pulse' : 'border-[#2e2a27] focus:border-[#ff6b00]'
+              }`}
             />
 
+            {/* Voice Dictation Button */}
+            <button
+              type="button"
+              onClick={toggleVoiceInput}
+              title={isListening ? "Stop listening" : "Click to speak transaction"}
+              className={`p-3 rounded-2xl border transition-all cursor-pointer ${
+                isListening
+                  ? 'bg-rose-600 text-white border-rose-500 animate-bounce'
+                  : 'bg-[#201d1b] text-[#a89d95] hover:text-white border-[#2e2a27]'
+              }`}
+            >
+              {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+            </button>
+
+            {/* Send Button */}
             <button
               type="submit"
               disabled={!input.trim() || loading}

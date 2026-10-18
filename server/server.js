@@ -12,18 +12,17 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
 // Database file path
 const DATA_DIR = path.join(__dirname, 'data');
 const DB_FILE = path.join(DATA_DIR, 'db.json');
 
-// Ensure data directory exists
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
-// Initial seed data matching student & young professional finance theme
+// Initial seed data
 const initialData = {
   budget: {
     monthlyLimit: 1500,
@@ -60,6 +59,17 @@ const initialData = {
       color: 'gradient-charcoal',
       isPrimary: false
     }
+  ],
+  subscriptions: [
+    { id: 'sub-1', name: 'GitHub Copilot Pro', amount: 10.00, billingCycle: 'monthly', nextBilling: '2026-11-01', category: 'Education & Books', icon: 'Code' },
+    { id: 'sub-2', name: 'Spotify Student Pass', amount: 5.99, billingCycle: 'monthly', nextBilling: '2026-10-25', category: 'Entertainment', icon: 'Music' },
+    { id: 'sub-3', name: 'ChatGPT Plus', amount: 20.00, billingCycle: 'monthly', nextBilling: '2026-11-05', category: 'Education & Books', icon: 'Bot' },
+    { id: 'sub-4', name: 'Campus Rec Fitness', amount: 25.00, billingCycle: 'monthly', nextBilling: '2026-10-28', category: 'Healthcare', icon: 'Dumbbell' }
+  ],
+  goals: [
+    { id: 'goal-1', title: 'MacBook Pro M3 Fund', targetAmount: 1800, currentAmount: 1350, deadline: '2026-12-15', category: 'Tech' },
+    { id: 'goal-2', title: 'Emergency Reserve Buffer', targetAmount: 3000, currentAmount: 2450, deadline: '2027-01-31', category: 'Safety' },
+    { id: 'goal-3', title: 'Summer Hackathon Trip', targetAmount: 600, currentAmount: 430, deadline: '2027-04-10', category: 'Travel' }
   ],
   transactions: [
     {
@@ -155,7 +165,6 @@ const initialData = {
   ]
 };
 
-// Helper to read database
 function readDb() {
   try {
     if (!fs.existsSync(DB_FILE)) {
@@ -165,6 +174,8 @@ function readDb() {
     const raw = fs.readFileSync(DB_FILE, 'utf-8');
     const parsed = JSON.parse(raw);
     if (!parsed.cards) parsed.cards = initialData.cards;
+    if (!parsed.subscriptions) parsed.subscriptions = initialData.subscriptions;
+    if (!parsed.goals) parsed.goals = initialData.goals;
     return parsed;
   } catch (err) {
     console.error('Error reading database, resetting to initial data:', err);
@@ -173,7 +184,6 @@ function readDb() {
   }
 }
 
-// Helper to write database
 function writeDb(data) {
   try {
     fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
@@ -182,12 +192,10 @@ function writeDb(data) {
   }
 }
 
-// Initialize on start
 readDb();
 
 // ======================== API ROUTES ========================
 
-// Health check
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'online',
@@ -351,16 +359,12 @@ app.delete('/api/transactions/:id', (req, res) => {
   });
 });
 
-// GET cards
+// GET & POST cards
 app.get('/api/cards', (req, res) => {
   const db = readDb();
-  res.json({
-    success: true,
-    data: db.cards || []
-  });
+  res.json({ success: true, data: db.cards || [] });
 });
 
-// POST add card
 app.post('/api/cards', (req, res) => {
   const { holder, type, last4, expiry, balance, color } = req.body;
   const db = readDb();
@@ -380,7 +384,87 @@ app.post('/api/cards', (req, res) => {
   res.json({ success: true, data: newCard });
 });
 
-// GET budget settings
+// GET & POST Subscriptions
+app.get('/api/subscriptions', (req, res) => {
+  const db = readDb();
+  res.json({ success: true, data: db.subscriptions || [] });
+});
+
+app.post('/api/subscriptions', (req, res) => {
+  const { name, amount, billingCycle, nextBilling, category, icon } = req.body;
+  if (!name || !amount) {
+    return res.status(400).json({ success: false, error: 'Subscription name and amount required.' });
+  }
+  const db = readDb();
+  const newSub = {
+    id: 'sub-' + Date.now(),
+    name: name.trim(),
+    amount: parseFloat(amount),
+    billingCycle: billingCycle || 'monthly',
+    nextBilling: nextBilling || new Date().toISOString().substring(0, 10),
+    category: category || 'Entertainment',
+    icon: icon || 'CreditCard'
+  };
+  db.subscriptions = db.subscriptions || [];
+  db.subscriptions.push(newSub);
+  writeDb(db);
+  res.json({ success: true, data: newSub });
+});
+
+app.delete('/api/subscriptions/:id', (req, res) => {
+  const { id } = req.params;
+  const db = readDb();
+  db.subscriptions = (db.subscriptions || []).filter(s => s.id !== id);
+  writeDb(db);
+  res.json({ success: true });
+});
+
+// GET & POST Savings Goals
+app.get('/api/goals', (req, res) => {
+  const db = readDb();
+  res.json({ success: true, data: db.goals || [] });
+});
+
+app.post('/api/goals', (req, res) => {
+  const { title, targetAmount, currentAmount, deadline, category } = req.body;
+  if (!title || !targetAmount) {
+    return res.status(400).json({ success: false, error: 'Goal title and target amount required.' });
+  }
+  const db = readDb();
+  const newGoal = {
+    id: 'goal-' + Date.now(),
+    title: title.trim(),
+    targetAmount: parseFloat(targetAmount),
+    currentAmount: parseFloat(currentAmount || 0),
+    deadline: deadline || '2027-01-01',
+    category: category || 'General'
+  };
+  db.goals = db.goals || [];
+  db.goals.push(newGoal);
+  writeDb(db);
+  res.json({ success: true, data: newGoal });
+});
+
+app.put('/api/goals/:id/deposit', (req, res) => {
+  const { id } = req.params;
+  const { amount } = req.body;
+  const db = readDb();
+  const goal = (db.goals || []).find(g => g.id === id);
+  if (!goal) return res.status(404).json({ success: false, error: 'Goal not found' });
+  goal.currentAmount = parseFloat((goal.currentAmount + parseFloat(amount || 0)).toFixed(2));
+  writeDb(db);
+  res.json({ success: true, data: goal });
+});
+
+app.delete('/api/goals/:id', (req, res) => {
+  const { id } = req.params;
+  const db = readDb();
+  db.goals = (db.goals || []).filter(g => g.id !== id);
+  writeDb(db);
+  res.json({ success: true });
+});
+
+// GET & POST budget settings
 app.get('/api/budget', (req, res) => {
   const db = readDb();
   res.json({
@@ -389,7 +473,6 @@ app.get('/api/budget', (req, res) => {
   });
 });
 
-// POST budget settings
 app.post('/api/budget', (req, res) => {
   const { monthlyLimit, currency } = req.body;
   const limit = parseFloat(monthlyLimit);
@@ -460,7 +543,6 @@ app.get('/api/summary', (req, res) => {
 
 // ======================== AI AGENT ENDPOINTS ========================
 
-// POST /api/ai/chat -> Financial AI Advisor & Copilot
 app.post('/api/ai/chat', (req, res) => {
   const { prompt, context } = req.body;
   const db = readDb();
@@ -486,7 +568,6 @@ app.post('/api/ai/chat', (req, res) => {
   const budgetLimit = db.budget?.monthlyLimit || 1500;
   const pctOfBudget = budgetLimit > 0 ? Math.round((expenses / budgetLimit) * 100) : 0;
 
-  // Intelligent Financial Heuristic AI Responses
   let reply = '';
   let suggestedActions = [];
 
@@ -506,7 +587,6 @@ app.post('/api/ai/chat', (req, res) => {
       : `⚠️ **Caution:** A purchase of **$${amountToCheck.toFixed(2)}** will push your current balance to **$${(balance - amountToCheck).toFixed(2)}** and utilize ${Math.round(((expenses + amountToCheck) / budgetLimit) * 100)}% of your monthly budget limit. Consider deferring non-essentials.`;
     suggestedActions = ['Add as Pending Expense', 'Review Bank Balance'];
   } else if (query.includes('predict') || query.includes('forecast') || query.includes('next month')) {
-    const projectedSavings = Math.max(0, balance * 1.05);
     reply = `🔮 **AI Cashflow Projection for Next Month:**\n\n- **Projected Inflow:** ~$${income.toFixed(2)}\n- **Projected Outflow:** ~$${(expenses * 0.96).toFixed(2)} (if current pacing holds)\n- **Forecast Net Balance:** ~$${(balance + 120).toFixed(2)}\n\n*Pro-tip:* If you maintain dining out under $150, you'll hit a record **28% net savings rate**!`;
     suggestedActions = ['Lock Target Savings', 'View Bar Chart'];
   } else {
@@ -524,7 +604,7 @@ app.post('/api/ai/chat', (req, res) => {
   });
 });
 
-// POST /api/ai/parse-transaction -> Natural language to structured transaction
+// Natural language transaction parser
 app.post('/api/ai/parse-transaction', (req, res) => {
   const { text } = req.body;
   if (!text || typeof text !== 'string') {
@@ -532,16 +612,12 @@ app.post('/api/ai/parse-transaction', (req, res) => {
   }
 
   const raw = text.toLowerCase();
-
-  // Extract amount
   const amountMatch = text.match(/\$?(\d+(\.\d{1,2})?)/);
   const amount = amountMatch ? parseFloat(amountMatch[1]) : 25.00;
 
-  // Determine type
   const isIncome = raw.includes('received') || raw.includes('earned') || raw.includes('got paid') || raw.includes('salary') || raw.includes('stipend') || raw.includes('grant') || raw.includes('income') || raw.includes('deposit');
   const type = isIncome ? 'income' : 'expense';
 
-  // Determine category
   let category = isIncome ? 'Other Income' : 'Other Expense';
   if (raw.includes('food') || raw.includes('dinner') || raw.includes('lunch') || raw.includes('coffee') || raw.includes('cafe') || raw.includes('snack') || raw.includes('restaurant')) {
     category = 'Food & Dining';
@@ -565,7 +641,6 @@ app.post('/api/ai/parse-transaction', (req, res) => {
     category = 'Shopping';
   }
 
-  // Clean title
   let cleanTitle = text
     .replace(/\$?(\d+(\.\d{1,2})?)/g, '')
     .replace(/(spent|paid|bought|received|earned|for|on|yesterday|today|dollars|usd)/gi, '')
@@ -591,7 +666,55 @@ app.post('/api/ai/parse-transaction', (req, res) => {
   });
 });
 
-// POST seed sample data
+// AI Receipt Scanner Simulation endpoint
+app.post('/api/ai/scan-receipt', (req, res) => {
+  const { sampleReceipt } = req.body;
+  
+  const receipts = {
+    'campus_cafe': {
+      merchant: 'University Campus Brew & Cafe',
+      amount: 14.75,
+      type: 'expense',
+      category: 'Food & Dining',
+      items: ['Caramel Oat Latte ($5.50)', 'Avocado Sourdough Toast ($8.25)', 'Sales Tax ($1.00)'],
+      confidence: 98.4
+    },
+    'bookstore': {
+      merchant: 'University Academic Bookstore',
+      amount: 124.99,
+      type: 'expense',
+      category: 'Education & Books',
+      items: ['Database Systems Concept (7th Ed)', 'Engineering Graph Pad', 'Uni Pen Pack'],
+      confidence: 99.1
+    },
+    'tech_store': {
+      merchant: 'Apex Tech & Electronics',
+      amount: 68.50,
+      type: 'expense',
+      category: 'Shopping',
+      items: ['USB-C Multiport Adapter 100W', 'Ergonomic Mouse Mat'],
+      confidence: 97.8
+    }
+  };
+
+  const detected = receipts[sampleReceipt] || receipts['campus_cafe'];
+  const date = new Date().toISOString().substring(0, 10);
+
+  res.json({
+    success: true,
+    data: {
+      title: detected.merchant,
+      amount: detected.amount,
+      type: detected.type,
+      category: detected.category,
+      date,
+      notes: `Scanned with FinAI Vision OCR (Confidence: ${detected.confidence}%)`,
+      items: detected.items
+    }
+  });
+});
+
+// Seed demo data
 app.post('/api/seed', (req, res) => {
   writeDb(initialData);
   res.json({
@@ -601,7 +724,7 @@ app.post('/api/seed', (req, res) => {
   });
 });
 
-// GET CSV export directly
+// CSV export
 app.get('/api/export/csv', (req, res) => {
   const db = readDb();
   const transactions = db.transactions || [];
@@ -618,7 +741,7 @@ app.get('/api/export/csv', (req, res) => {
   res.status(200).send(csv);
 });
 
-// Serve frontend production build if exists
+// Serve static
 const clientDist = path.join(__dirname, '..', 'client', 'dist');
 if (fs.existsSync(clientDist)) {
   app.use(express.static(clientDist));
@@ -627,7 +750,6 @@ if (fs.existsSync(clientDist)) {
   });
 }
 
-// Start server
 app.listen(PORT, () => {
   console.log(`🚀 Expense Tracker API Server running at http://localhost:${PORT}`);
   console.log(`   Health check: http://localhost:${PORT}/api/health`);
