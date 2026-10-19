@@ -181,8 +181,9 @@ Open your browser at **`http://localhost:5173`**.
 > Production startup now fails closed in `server/config/env.js`. Do not bypass
 > that guard or expose the demo API publicly. The authentication schema in
 > `server/db/schema.sql` is a foundation. Local email/password registration,
-> login, logout, and session lookup are implemented; provider OAuth, email
-> verification/reset delivery, and user-owned financial storage are not.
+> login, logout, and session lookup are implemented. Provider OAuth flows are
+> implemented but remain unavailable until credentials are configured in
+> `server/.env`. Email verification/reset delivery also requires SMTP settings.
 
 The Vercel frontend-only demo can still be deployed for a presentation, but it
 must not be described as a multi-user or production financial service. The
@@ -230,6 +231,24 @@ accounts and sessions that are lost when the server restarts. OAuth buttons are 
 The backend template at `server/.env.example` now contains the credential names
 and local callback URLs. Copy it to `server/.env`, then fill values issued by
 each provider. Do not send credentials through chat or commit `server/.env`.
+
+For Google specifically, create or select a project in Google Cloud Console,
+configure the OAuth consent screen/branding and audience for your app, and
+create an OAuth client with application type **Web application**. Register this
+exact authorized redirect URI:
+
+```text
+http://localhost:5000/api/auth/oauth/google/callback
+```
+
+Copy the issued client ID and client secret into the matching `GOOGLE_CLIENT_ID`
+and `GOOGLE_CLIENT_SECRET` entries in `server/.env`. Keep
+`GOOGLE_CALLBACK_URL` set to the same URI. Save the file and restart the backend;
+the Google button is enabled when all three values are present. For deployed
+environments, register the deployment's exact HTTPS callback URL and configure
+the corresponding server environment variables there. Google requires the
+redirect URI in the authorization request to exactly match a URI registered on
+the OAuth client ([Google web-server OAuth guide](https://developers.google.com/identity/protocols/oauth2/web-server)).
 
 | Provider | Create credentials in | Local callback to register |
 | --- | --- | --- |

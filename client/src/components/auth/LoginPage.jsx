@@ -121,7 +121,11 @@ export default function LoginPage({ initialView }) {
       } else {
         const result = await auth.login({ email: email.trim(), password });
         if (result.requiresMfa) { setOtpMode('totp'); setCode(''); setView('otp'); }
-        else await auth.refresh();
+        // A successful password login already returns the authenticated profile
+        // and AuthContext stores it. Avoid a redundant /me request here so the
+        // dashboard renders immediately instead of briefly returning to login
+        // if the follow-up session lookup races the cookie write.
+        else if (!result.user) await auth.refresh();
       }
     });
   };
