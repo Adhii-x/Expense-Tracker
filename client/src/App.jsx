@@ -16,6 +16,7 @@ import WellthPlanHealthScore from './components/WellthPlanHealthScore';
 import LoginPage from './components/auth/LoginPage';
 import AuthenticatedShell from './components/auth/AuthenticatedShell';
 import { useAuth } from './context/AuthContext';
+import { setLocalAccountScope } from './services/api';
 
 import {
   testBackendConnection,
@@ -39,7 +40,7 @@ import {
 import { downloadCsv } from './utils';
 
 function DemoApp() {
-  const [activeTab, setActiveTab] = useState('analytics'); // Initial view matching the photo!
+  const [activeTab, setActiveTab] = useState('dashboard');
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
   const currency = 'INR';
@@ -466,8 +467,9 @@ function DemoApp() {
 
 export default function App() {
   const auth = useAuth();
+  setLocalAccountScope(auth.enabled && auth.user ? auth.user.id : '');
   if (!auth.enabled) return <DemoApp />;
   if (auth.loading) return <div className="min-h-screen bg-[#0e0d0c] grid place-items-center text-sm text-[#a99f97]" role="status">Checking your secure session…</div>;
   if (!auth.user) return <LoginPage />;
-  return <AuthenticatedShell />;
+  return <AuthenticatedShell><DemoApp /></AuthenticatedShell>;
 }

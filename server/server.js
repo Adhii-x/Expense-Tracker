@@ -1,13 +1,20 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import session from 'express-session';
+import connectPgSimple from 'connect-pg-simple';
+import pg from 'pg';
 import fs from 'fs';
 import path from 'path';
+import { randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'url';
 import 'dotenv/config';
 import { createDataStore } from './database.js';
 import { validateEnvironment } from './config/env.js';
+import { createAuthOriginGuard } from './middleware/authOrigin.js';
+import { createAuthRouter } from './routes/auth.js';
 
-validateEnvironment();
+const { mode: authMode } = validateEnvironment();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,8 +23,75 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors());
+const clientOrigins = (process.env.CLIENT_URL || 'http://localhost:5173')
+  .split(',').map(value => value.trim()).filter(Boolean);
+app.disable('x-powered-by');
+app.use(helmet());
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || clientOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error('Origin is not allowed by CORS.'));
+  },
+  credentials: true
+}));
 app.use(express.json({ limit: '10mb' }));
+
+const { Pool } = pg;
+const authPool = process.env.DATABASE_URL
+  ? new Pool({ connectionString: process.env.DATABASE_URL })
+  : null;
+const sessionMaxAge = Number(process.env.SESSION_MAX_AGE_MS) || 7 * 24 * 60 * 60 * 1000;
+const sessionSecret = process.env.SESSION_SECRET || randomBytes(48).toString('base64url');
+const sessionCookieName = process.env.SESSION_COOKIE_NAME || 'expense.sid';
+
+if (authPool) {
+  await authPool.query(`
+    CREATE TABLE IF NOT EXISTS auth_users (
+      id UUID PRIMARY KEY,
+      name TEXT NOT NULL CHECK (length(name) BETWEEN 1 AND 120),
+      email TEXT NOT NULL,
+      password_hash TEXT,
+      email_verified_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      deleted_at TIMESTAMPTZ
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS auth_users_email_active_uq
+      ON auth_users (lower(email)) WHERE deleted_at IS NULL;
+  `);
+} else {
+  console.warn('Authentication is using temporary in-memory users and sessions. Set DATABASE_URL for persistence.');
+}
+
+if (authMode === 'authenticated') {
+  const PgSessionStore = connectPgSimple(session);
+  const sessionStore = authPool
+    ? new PgSessionStore({ pool: authPool, tableName: 'web_sessions', createTableIfMissing: true, pruneSessionInterval: 15 })
+    : undefined;
+  app.use(session({
+    name: sessionCookieName,
+    secret: sessionSecret,
+    store: sessionStore,
+    resave: false,
+    saveUninitialized: false,
+    rolling: true,
+    cookie: {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: sessionMaxAge,
+      path: '/'
+    }
+  }));
+}
+
+app.use('/api/auth', createAuthOriginGuard(clientOrigins));
+app.use('/api/auth', createAuthRouter({ pool: authPool }));
+app.use('/api', (req, res, next) => {
+  if (authMode !== 'authenticated' || req.path === '/health' || req.path.startsWith('/auth/')) return next();
+  if (!req.session?.userId) return res.status(401).json({ success: false, error: 'Sign in to continue.' });
+  return res.status(503).json({ success: false, error: 'Per-user financial storage is not configured yet.' });
+});
 
 // Database file path used for JSON storage and one-time PostgreSQL import.
 const DB_FILE = path.join(__dirname, 'data', 'db.json');

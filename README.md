@@ -176,12 +176,13 @@ Open your browser at **`http://localhost:5173`**.
 
 ## 🌐 Deploying to Vercel (For Final Submission)
 
-> **Security status:** This repository currently runs in shared demo mode. Its
-> financial API is not authenticated and all server-side demo data is shared.
+> **Security status:** The demo financial data remains shared. In authenticated
+> mode, the server blocks financial APIs until per-user storage is implemented.
 > Production startup now fails closed in `server/config/env.js`. Do not bypass
 > that guard or expose the demo API publicly. The authentication schema in
-> `server/db/schema.sql` is a foundation only; registration, sessions, user-owned
-> financial storage, OAuth, OTP, MFA, and passkeys are not yet implemented.
+> `server/db/schema.sql` is a foundation. Local email/password registration,
+> login, logout, and session lookup are implemented; provider OAuth, email
+> verification/reset delivery, and user-owned financial storage are not.
 
 The Vercel frontend-only demo can still be deployed for a presentation, but it
 must not be described as a multi-user or production financial service. The
@@ -209,21 +210,46 @@ fake successful sign-ins. Use HTTPS, provider-registered callback URLs, a
 dedicated PostgreSQL database, a secret manager, and backups when the missing
 auth implementation is completed.
 
-The `AUTH_MODE=demo` configuration is strictly for local development. The
-backend rejects `NODE_ENV=production` until authenticated sessions and isolated
-financial storage are actually enforced.
+The backend defaults to `AUTH_MODE=authenticated`. Set `AUTH_MODE=demo` only
+for local sample-data development. The backend rejects `NODE_ENV=production`
+until isolated financial storage and the remaining production controls are
+implemented.
 
 ### Authentication UI mode
 
-Copy `client/.env.example` to `client/.env.local` to choose the public UI mode.
-`VITE_AUTH_MODE=demo` preserves the current sample dashboard. Setting
-`VITE_AUTH_MODE=authenticated` shows the sign-in and account-security experience
-and keeps the shared demo ledger out of that mode. Vite variables are public;
+The sign-in and account-security experience is the default UI. Set
+`VITE_AUTH_MODE=demo` in `client/.env.local` to show the existing sample
+dashboard. Setting `VITE_AUTH_MODE=authenticated` explicitly also shows the
+sign-in experience and keeps the shared demo ledger out of that mode. Vite variables are public;
 never place provider secrets, session keys, or database credentials in the
-client environment. The forms target the documented `/api/auth/*` routes, which
-still need a real server-side session/auth implementation before they can sign
-users in. Social buttons and passkey registration remain unavailable until
-their backend integrations exist.
+client environment. The forms use `/api/auth/*` routes backed by Argon2id
+password hashes and HTTP-only sessions. If `DATABASE_URL` is set, accounts and
+sessions use PostgreSQL; without it, development uses temporary in-memory
+accounts and sessions that are lost when the server restarts. Social buttons
+remain disabled until provider callbacks and account linking are implemented.
+Adding credentials alone does not enable OAuth login.
+
+#### Google, GitHub, Microsoft, and Apple OAuth credentials
+
+The backend template at `server/.env.example` now contains the credential names
+and local callback URLs. Copy it to `server/.env`, then fill values issued by
+each provider. Do not send credentials through chat or commit `server/.env`.
+
+| Provider | Create credentials in | Local callback to register |
+| --- | --- | --- |
+| Google | [Google Cloud OAuth web application](https://developers.google.com/identity/protocols/oauth2/web-server) | `http://localhost:5000/api/oauth/google/callback` |
+| GitHub | [GitHub OAuth App](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/creating-an-oauth-app) | `http://localhost:5000/api/oauth/github/callback` |
+| Microsoft | [Microsoft Entra app registration](https://learn.microsoft.com/en-us/entra/identity-platform/how-to-add-redirect-uri) | `http://localhost:5000/api/oauth/microsoft/callback` |
+| Apple | [Sign in with Apple web Services ID](https://developer.apple.com/help/account/capabilities/configure-sign-in-with-apple-for-the-web/) | `http://localhost:5000/api/oauth/apple/callback` |
+
+Put client IDs and client secrets only in the matching server variables. For
+Microsoft, set `MICROSOFT_TENANT_ID` to `common` for the intended supported
+account types or to the tenant identifier required by your app registration.
+For Apple, `APPLE_CLIENT_ID` is the web Services ID; also configure the Team ID,
+Key ID, and private signing key. Register the exact production HTTPS callback
+URLs after deploying the backend. These repository callback routes are
+configuration placeholders: OAuth route handlers and validated user sessions
+have not yet been implemented, so provider sign-in is not operational.
 
 TOTP primitives now use `otplib` and `qrcode`. Enrollment secrets are encrypted
 with AES-256-GCM using `MFA_ENCRYPTION_KEY`; recovery codes are stored as

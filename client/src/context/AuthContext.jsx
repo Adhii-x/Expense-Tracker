@@ -2,7 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { authApi } from '../services/authApi';
 
 const AuthContext = createContext(null);
-const authMode = import.meta.env.VITE_AUTH_MODE === 'authenticated';
+// Default to the auth UI. The shared sample dashboard is an explicit demo mode.
+const authMode = import.meta.env.VITE_AUTH_MODE !== 'demo';
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);

@@ -5,8 +5,9 @@ export function validateEnvironment(env = process.env) {
     );
   }
 
-  if (env.AUTH_MODE && env.AUTH_MODE !== 'demo') {
-    throw new Error('Only AUTH_MODE=demo is implemented in this build.');
+  const mode = env.AUTH_MODE || 'authenticated';
+  if (!['demo', 'authenticated'].includes(mode)) {
+    throw new Error('AUTH_MODE must be either demo or authenticated.');
   }
-  return { mode: 'demo' };
+  return { mode };
 }

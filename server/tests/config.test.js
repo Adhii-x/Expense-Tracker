@@ -2,8 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { validateEnvironment } from '../config/env.js';
 
-test('development defaults to the legacy demo mode', () => {
-  assert.deepEqual(validateEnvironment({ NODE_ENV: 'development' }), { mode: 'demo' });
+test('development defaults to authenticated mode', () => {
+  assert.deepEqual(validateEnvironment({ NODE_ENV: 'development' }), { mode: 'authenticated' });
+});
+
+test('demo mode is available when explicitly selected', () => {
+  assert.deepEqual(validateEnvironment({ NODE_ENV: 'development', AUTH_MODE: 'demo' }), { mode: 'demo' });
 });
 
 test('production fails closed while shared financial storage is in use', () => {
@@ -13,9 +17,9 @@ test('production fails closed while shared financial storage is in use', () => {
   );
 });
 
-test('unimplemented auth modes cannot be enabled in development', () => {
+test('unknown auth modes are rejected', () => {
   assert.throws(
-    () => validateEnvironment({ NODE_ENV: 'development', AUTH_MODE: 'authenticated' }),
-    /Only AUTH_MODE=demo is implemented/
+    () => validateEnvironment({ NODE_ENV: 'development', AUTH_MODE: 'invalid' }),
+    /AUTH_MODE must be either demo or authenticated/
   );
 });

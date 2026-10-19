@@ -94,8 +94,8 @@ export default function LoginPage({ initialView }) {
     run(async () => {
       if (isRegister) {
         await auth.register({ name: name.trim(), email: email.trim(), password, confirmPassword: confirm });
-        setNotice('If the address can be registered, you’ll receive a verification email shortly.');
-        setView('verify');
+        setNotice('If the account can be created, it is ready for sign-in. Email verification delivery is not configured yet.');
+        setView('login');
       } else {
         const result = await auth.login({ email: email.trim(), password });
         if (result.requiresMfa) setView('otp');
@@ -166,7 +166,7 @@ export default function LoginPage({ initialView }) {
 
         {(view === 'login' || view === 'register') && <>
           <div className="mt-7 grid grid-cols-2 gap-2">
-            {providers.map(({ id, label, icon: Icon }) => <button key={id} type="button" disabled title={`${label} sign-in is not configured on this server`} className="flex items-center justify-center gap-2 rounded-xl border border-[#302a26] bg-[#171513] px-3 py-3 text-xs font-semibold text-[#91877e] disabled:cursor-not-allowed disabled:opacity-60"><span className="text-sm font-black">{typeof Icon === 'string' ? Icon : <Icon size={15} />}</span>{label}<span className="sr-only">(not configured)</span></button>)}
+            {providers.map(({ id, label, icon: Icon }) => <button key={id} type="button" disabled title={`${label} OAuth routes are not implemented on this server yet`} className="flex items-center justify-center gap-2 rounded-xl border border-[#302a26] bg-[#171513] px-3 py-3 text-xs font-semibold text-[#91877e] disabled:cursor-not-allowed disabled:opacity-60"><span className="text-sm font-black">{typeof Icon === 'string' ? Icon : <Icon size={15} />}</span>{label}<span className="sr-only">(OAuth not available)</span></button>)}
           </div>
           <div className="my-6 flex items-center gap-3 text-[10px] text-[#716860]"><span className="h-px flex-1 bg-[#2b2622]" />OR CONTINUE WITH EMAIL<span className="h-px flex-1 bg-[#2b2622]" /></div>
         </>}
@@ -174,9 +174,9 @@ export default function LoginPage({ initialView }) {
         {view === 'login' && <form onSubmit={submit} className="space-y-4">
           <div><label htmlFor="auth-email" className="block text-xs font-semibold text-[#c8bfb8] mb-2">Email address</label><input id="auth-email" type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} className="auth-input" required /></div>
           <PasswordField value={password} onChange={e => setPassword(e.target.value)} />
-          <div className="flex justify-end"><button type="button" onClick={() => setView('forgot')} className="text-xs font-semibold text-[#ff9b52] hover:text-white">Forgot password?</button></div>
+          <div className="flex justify-end"><span className="text-xs text-[#81766d]" title="Configure SMTP and password reset routes to enable this option">Password recovery is not configured</span></div>
           <button disabled={busy} className="auth-primary"><span>{busy ? 'Signing in…' : 'Sign in securely'}</span><ArrowRight size={17} /></button>
-          <button type="button" onClick={requestEmailOtp} disabled={busy || !email} className="auth-secondary"><Mail size={16} /> Continue with email code</button>
+          <p className="text-center text-xs text-[#81766d]" role="note">Email-code sign-in is not configured. Use your password to sign in.</p>
           <p className="text-center text-xs text-[#8e847c] pt-2">New to Expense Tracker? <button type="button" onClick={() => { setView('register'); setError(''); }} className="font-bold text-[#ff9b52] hover:text-white">Create an account</button></p>
         </form>}
 

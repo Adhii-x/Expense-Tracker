@@ -5,6 +5,17 @@ const STORAGE_KEY_BUDGET = 'expensetracker_budget_v1';
 const STORAGE_KEY_CARDS = 'expensetracker_cards_v1';
 const STORAGE_KEY_SUBS = 'expensetracker_subscriptions_v1';
 const STORAGE_KEY_GOALS = 'expensetracker_goals_v1';
+let accountScope = '';
+
+// Keep browser fallback data isolated per signed-in account. Demo mode retains
+// the original keys so existing demo data remains available.
+export function setLocalAccountScope(accountId = '') {
+  accountScope = accountId ? `account_${accountId}` : '';
+}
+
+function storageKey(key) {
+  return accountScope ? `${key}_${accountScope}` : key;
+}
 
 const API_BASE = '/api';
 
@@ -21,12 +32,15 @@ export async function apiRequest(path, options = {}) {
       }
     });
   } catch {
-    throw new Error('Can’t reach the authentication service. Check that the API server is running.');
+    throw new Error("Can't reach the authentication service. Check that the API server is running.");
   }
 
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const error = new Error(payload.error || 'This authentication feature is not available on the server yet.');
+    const fallback = response.status === 404 || response.status === 501
+      ? 'This sign-in option is not enabled on this server. Use email and password, or configure the requested provider.'
+      : `The request could not be completed (HTTP ${response.status}).`;
+    const error = new Error(payload.error || fallback);
     error.status = response.status;
     throw error;
   }
@@ -94,10 +108,12 @@ export async function testBackendConnection() {
 // ----------------- LOCAL STORAGE HELPERS -----------------
 export function getLocalTransactions() {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY_TX);
+    const key = storageKey(STORAGE_KEY_TX);
+    const stored = localStorage.getItem(key);
     if (!stored) {
-      localStorage.setItem(STORAGE_KEY_TX, JSON.stringify(INITIAL_TRANSACTIONS));
-      return INITIAL_TRANSACTIONS;
+      const initial = accountScope ? [] : INITIAL_TRANSACTIONS;
+      localStorage.setItem(key, JSON.stringify(initial));
+      return initial;
     }
     return JSON.parse(stored);
   } catch (e) {
@@ -107,7 +123,7 @@ export function getLocalTransactions() {
 
 export function saveLocalTransactions(transactions) {
   try {
-    localStorage.setItem(STORAGE_KEY_TX, JSON.stringify(transactions));
+    localStorage.setItem(storageKey(STORAGE_KEY_TX), JSON.stringify(transactions));
   } catch (e) {
     console.error('Error saving to localStorage:', e);
   }
@@ -115,14 +131,15 @@ export function saveLocalTransactions(transactions) {
 
 export function getLocalBudget() {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY_BUDGET);
+    const key = storageKey(STORAGE_KEY_BUDGET);
+    const stored = localStorage.getItem(key);
     if (!stored) {
       const def = { monthlyLimit: 25000, currency: 'INR' };
-      localStorage.setItem(STORAGE_KEY_BUDGET, JSON.stringify(def));
+      localStorage.setItem(key, JSON.stringify(def));
       return def;
     }
     const budget = { ...JSON.parse(stored), currency: 'INR' };
-    localStorage.setItem(STORAGE_KEY_BUDGET, JSON.stringify(budget));
+    localStorage.setItem(key, JSON.stringify(budget));
     return budget;
   } catch (e) {
     return { monthlyLimit: 25000, currency: 'INR' };
@@ -131,7 +148,7 @@ export function getLocalBudget() {
 
 export function saveLocalBudget(budget) {
   try {
-    localStorage.setItem(STORAGE_KEY_BUDGET, JSON.stringify(budget));
+    localStorage.setItem(storageKey(STORAGE_KEY_BUDGET), JSON.stringify(budget));
   } catch (e) {
     console.error('Error saving budget to localStorage:', e);
   }
@@ -139,10 +156,12 @@ export function saveLocalBudget(budget) {
 
 export function getLocalCards() {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY_CARDS);
+    const key = storageKey(STORAGE_KEY_CARDS);
+    const stored = localStorage.getItem(key);
     if (!stored) {
-      localStorage.setItem(STORAGE_KEY_CARDS, JSON.stringify(INITIAL_CARDS));
-      return INITIAL_CARDS;
+      const initial = accountScope ? [] : INITIAL_CARDS;
+      localStorage.setItem(key, JSON.stringify(initial));
+      return initial;
     }
     return JSON.parse(stored);
   } catch (e) {
@@ -152,7 +171,7 @@ export function getLocalCards() {
 
 export function saveLocalCards(cards) {
   try {
-    localStorage.setItem(STORAGE_KEY_CARDS, JSON.stringify(cards));
+    localStorage.setItem(storageKey(STORAGE_KEY_CARDS), JSON.stringify(cards));
   } catch (e) {
     console.error('Error saving cards to localStorage:', e);
   }
@@ -160,10 +179,12 @@ export function saveLocalCards(cards) {
 
 export function getLocalSubscriptions() {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY_SUBS);
+    const key = storageKey(STORAGE_KEY_SUBS);
+    const stored = localStorage.getItem(key);
     if (!stored) {
-      localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(INITIAL_SUBSCRIPTIONS));
-      return INITIAL_SUBSCRIPTIONS;
+      const initial = accountScope ? [] : INITIAL_SUBSCRIPTIONS;
+      localStorage.setItem(key, JSON.stringify(initial));
+      return initial;
     }
     return JSON.parse(stored);
   } catch (e) {
@@ -173,16 +194,18 @@ export function getLocalSubscriptions() {
 
 export function saveLocalSubscriptions(subs) {
   try {
-    localStorage.setItem(STORAGE_KEY_SUBS, JSON.stringify(subs));
+    localStorage.setItem(storageKey(STORAGE_KEY_SUBS), JSON.stringify(subs));
   } catch (e) {}
 }
 
 export function getLocalGoals() {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY_GOALS);
+    const key = storageKey(STORAGE_KEY_GOALS);
+    const stored = localStorage.getItem(key);
     if (!stored) {
-      localStorage.setItem(STORAGE_KEY_GOALS, JSON.stringify(INITIAL_GOALS));
-      return INITIAL_GOALS;
+      const initial = accountScope ? [] : INITIAL_GOALS;
+      localStorage.setItem(key, JSON.stringify(initial));
+      return initial;
     }
     return JSON.parse(stored);
   } catch (e) {
@@ -192,7 +215,7 @@ export function getLocalGoals() {
 
 export function saveLocalGoals(goals) {
   try {
-    localStorage.setItem(STORAGE_KEY_GOALS, JSON.stringify(goals));
+    localStorage.setItem(storageKey(STORAGE_KEY_GOALS), JSON.stringify(goals));
   } catch (e) {}
 }
 
