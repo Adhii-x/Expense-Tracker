@@ -35,7 +35,80 @@
       "isPrimary": false
     }
   ],
+  "subscriptions": [
+    {
+      "id": "sub-1",
+      "name": "GitHub Copilot Pro",
+      "amount": 10,
+      "billingCycle": "monthly",
+      "nextBilling": "2026-11-01",
+      "category": "Education & Books",
+      "icon": "Code"
+    },
+    {
+      "id": "sub-2",
+      "name": "Spotify Student Pass",
+      "amount": 5.99,
+      "billingCycle": "monthly",
+      "nextBilling": "2026-10-25",
+      "category": "Entertainment",
+      "icon": "Music"
+    },
+    {
+      "id": "sub-3",
+      "name": "ChatGPT Plus",
+      "amount": 20,
+      "billingCycle": "monthly",
+      "nextBilling": "2026-11-05",
+      "category": "Education & Books",
+      "icon": "Bot"
+    },
+    {
+      "id": "sub-4",
+      "name": "Campus Rec Fitness",
+      "amount": 25,
+      "billingCycle": "monthly",
+      "nextBilling": "2026-10-28",
+      "category": "Healthcare",
+      "icon": "Dumbbell"
+    }
+  ],
+  "goals": [
+    {
+      "id": "goal-1",
+      "title": "MacBook Pro M3 Fund",
+      "targetAmount": 1800,
+      "currentAmount": 1350,
+      "deadline": "2026-12-15",
+      "category": "Tech"
+    },
+    {
+      "id": "goal-2",
+      "title": "Emergency Reserve Buffer",
+      "targetAmount": 3000,
+      "currentAmount": 2450,
+      "deadline": "2027-01-31",
+      "category": "Safety"
+    },
+    {
+      "id": "goal-3",
+      "title": "Summer Hackathon Trip",
+      "targetAmount": 600,
+      "currentAmount": 430,
+      "deadline": "2027-04-10",
+      "category": "Travel"
+    }
+  ],
   "transactions": [
+    {
+      "id": "tx-1792393244506-y92zn",
+      "title": "TERXO",
+      "amount": 2000,
+      "type": "expense",
+      "category": "Personal Care",
+      "date": "2026-10-19",
+      "notes": ""
+    },
     {
       "id": "tx-1",
       "title": "Campus Bookstore - Textbooks",
