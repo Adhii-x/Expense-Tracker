@@ -4,8 +4,10 @@ const post = (path, data) => apiRequest(path, { method: 'POST', body: JSON.strin
 
 export const authApi = {
   me: () => apiRequest('/auth/me'),
+  providers: () => apiRequest('/auth/providers'),
   login: (data) => post('/auth/login', data),
   register: (data) => post('/auth/register', data),
+  requestVerification: (email) => post('/auth/email/verification/request', { email }),
   logout: () => post('/auth/logout', {}),
   forgotPassword: (email) => post('/auth/forgot-password', { email }),
   resetPassword: (token, password) => post('/auth/reset-password', { token, password }),
@@ -22,9 +24,13 @@ export const authApi = {
   exportData: () => apiRequest('/auth/account/export'),
   deleteAccount: (password) => post('/auth/account/delete', { password }),
   passkeys: () => apiRequest('/auth/passkeys'),
+  passkeyRegistrationOptions: () => post('/auth/passkeys/register/options', {}),
+  passkeyRegistrationVerify: (response, label) => post('/auth/passkeys/register/verify', { response, label }),
+  passkeyAuthenticationOptions: () => post('/auth/passkeys/authenticate/options', {}),
+  passkeyAuthenticationVerify: (response) => post('/auth/passkeys/authenticate/verify', { response }),
   revokePasskey: (id) => apiRequest(`/auth/passkeys/${encodeURIComponent(id)}`, { method: 'DELETE' })
 };
 
 export function startOAuth(provider) {
-  window.location.assign(`/api/oauth/${encodeURIComponent(provider)}`);
+  window.location.assign(`/api/auth/oauth/${encodeURIComponent(provider)}`);
 }

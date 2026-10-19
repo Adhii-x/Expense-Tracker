@@ -56,8 +56,10 @@ CREATE TABLE IF NOT EXISTS mfa_methods (
   method TEXT NOT NULL CHECK (method IN ('totp','email','sms')),
   secret_ciphertext BYTEA,
   enabled_at TIMESTAMPTZ,
+  last_totp_counter BIGINT NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE mfa_methods ADD COLUMN IF NOT EXISTS last_totp_counter BIGINT NOT NULL DEFAULT 0;
 CREATE UNIQUE INDEX IF NOT EXISTS mfa_methods_user_type_uq ON mfa_methods(user_id, method);
 
 CREATE TABLE IF NOT EXISTS mfa_recovery_codes (

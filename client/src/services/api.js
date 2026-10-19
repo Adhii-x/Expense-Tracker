@@ -13,6 +13,13 @@ export function setLocalAccountScope(accountId = '') {
   accountScope = accountId ? `account_${accountId}` : '';
 }
 
+export function clearLocalAccountData(accountId) {
+  if (!accountId) return;
+  for (const key of [STORAGE_KEY_TX, STORAGE_KEY_BUDGET, STORAGE_KEY_CARDS, STORAGE_KEY_SUBS, STORAGE_KEY_GOALS]) {
+    localStorage.removeItem(`${key}_account_${accountId}`);
+  }
+}
+
 function storageKey(key) {
   return accountScope ? `${key}_${accountScope}` : key;
 }

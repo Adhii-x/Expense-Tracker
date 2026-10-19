@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Activity, AlertTriangle, Check, Copy, Download, Fingerprint, Laptop, LogOut, RefreshCw, Shield, ShieldCheck, Smartphone, Trash2 } from 'lucide-react';
+import { startRegistration } from '@simplewebauthn/browser';
 import { authApi } from '../../services/authApi';
+import { clearLocalAccountData, getLocalBudget, getLocalCards, getLocalGoals, getLocalSubscriptions, getLocalTransactions } from '../../services/api';
 
 function Panel({ icon: Icon, title, description, children }) {
   return <section className="rounded-2xl border border-[#302923] bg-[#171513] p-5 sm:p-6">
@@ -20,6 +22,7 @@ export default function AccountSecurity({ user, onLogout }) {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [loading, setLoading] = useState(false);
+  const [capabilities, setCapabilities] = useState({ totp: false });
 
   const loadSecurityData = useCallback(async () => {
     setLoading(true); setError('');
@@ -32,7 +35,10 @@ export default function AccountSecurity({ user, onLogout }) {
     setLoading(false);
   }, []);
 
-  useEffect(() => { loadSecurityData(); }, [loadSecurityData]);
+  useEffect(() => {
+    loadSecurityData();
+    authApi.providers().then(result => setCapabilities(result)).catch(() => setCapabilities({ totp: false }));
+  }, [loadSecurityData]);
 
   const act = async (action, success) => {
     setLoading(true); setError(''); setNotice('');
@@ -50,7 +56,13 @@ export default function AccountSecurity({ user, onLogout }) {
   const confirmTotp = async (event) => {
     event.preventDefault();
     const result = await act(() => authApi.verifyTotp(code), 'Authenticator app enabled. Save the recovery codes somewhere safe.');
-    if (result?.recoveryCodes) { setRecoveryCodes(result.recoveryCodes); setQr(''); setCode(''); }
+    if (result?.recoveryCodes) { setRecoveryCodes(result.recoveryCodes); setQr(''); setCode(''); authApi.providers().then(setCapabilities); }
+  };
+
+  const disableAuthenticator = async (event) => {
+    event.preventDefault();
+    const result = await act(() => authApi.disableTotp(password, code), 'Authenticator app disabled.');
+    if (result) { setCode(''); setPassword(''); authApi.providers().then(setCapabilities); }
   };
 
   const exportRecovery = () => {
@@ -62,7 +74,18 @@ export default function AccountSecurity({ user, onLogout }) {
   const exportData = async () => {
     const result = await act(() => authApi.exportData(), 'Your account export is ready.');
     if (result) {
-      const blob = new Blob([JSON.stringify(result, null, 2)], { type: 'application/json' });
+      const exportData = {
+        ...result,
+        financialData: {
+          transactions: getLocalTransactions(),
+          budget: getLocalBudget(),
+          cards: getLocalCards(),
+          subscriptions: getLocalSubscriptions(),
+          goals: getLocalGoals(),
+          storage: 'This browser, scoped to the signed-in account'
+        }
+      };
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a'); link.href = url; link.download = 'expense-tracker-account-export.json'; link.click(); URL.revokeObjectURL(url);
     }
@@ -72,8 +95,14 @@ export default function AccountSecurity({ user, onLogout }) {
     event.preventDefault();
     if (!window.confirm('Permanently delete your account and personal data? This cannot be undone.')) return;
     const result = await act(() => authApi.deleteAccount(password));
-    if (result) onLogout();
+    if (result) { clearLocalAccountData(user?.id); onLogout(); }
   };
+
+  const addPasskey = () => act(async () => {
+    const { options } = await authApi.passkeyRegistrationOptions();
+    const response = await startRegistration({ optionsJSON: options });
+    return authApi.passkeyRegistrationVerify(response, `${user?.name || 'Account'} passkey`);
+  }, 'Passkey added.');
 
   return <div className="mx-auto max-w-5xl space-y-6 p-5 sm:p-8">
     <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -88,13 +117,13 @@ export default function AccountSecurity({ user, onLogout }) {
 
     <div className="grid gap-4 lg:grid-cols-2">
       <Panel icon={Smartphone} title="Authenticator app" description="Use a TOTP app such as Google Authenticator or Microsoft Authenticator for an additional sign-in check.">
-        {qr ? <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center"><img src={qr} alt="Authenticator enrollment QR code" className="h-48 w-48 rounded-xl bg-white p-2" /><form onSubmit={confirmTotp} className="w-full space-y-3"><label htmlFor="totp-confirm" className="block text-xs font-semibold text-[#c8bfb8]">Enter the 6-digit code from your app</label><input id="totp-confirm" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} className="auth-input tracking-[0.4em]" maxLength={6} required /><button className="auth-primary" disabled={loading || code.length !== 6}>Confirm and enable</button></form></div> : <button className="auth-secondary sm:w-auto" onClick={startTotp} disabled={loading}><Shield size={15} /> Set up authenticator</button>}
+        {capabilities.totpEnabled ? <form onSubmit={disableAuthenticator} className="space-y-3"><p className="text-xs font-semibold text-emerald-200">Authenticator app is enabled.</p>{user?.hasPassword && <><label htmlFor="totp-disable-password" className="block text-xs font-semibold text-[#c8bfb8]">Confirm password</label><input id="totp-disable-password" type="password" autoComplete="current-password" value={password} onChange={event => setPassword(event.target.value)} className="auth-input" required /></>}<label htmlFor="totp-disable-code" className="block text-xs font-semibold text-[#c8bfb8]">Authenticator code</label><input id="totp-disable-code" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={event => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))} className="auth-input tracking-[0.4em]" maxLength={6} required /><button className="auth-danger" disabled={loading || code.length !== 6}>Disable authenticator</button></form> : qr ? <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center"><img src={qr} alt="Authenticator enrollment QR code" className="h-48 w-48 rounded-xl bg-white p-2" /><form onSubmit={confirmTotp} className="w-full space-y-3"><label htmlFor="totp-confirm" className="block text-xs font-semibold text-[#c8bfb8]">Enter the 6-digit code from your app</label><input id="totp-confirm" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} className="auth-input tracking-[0.4em]" maxLength={6} required /><button className="auth-primary" disabled={loading || code.length !== 6}>Confirm and enable</button></form></div> : <><button className="auth-secondary sm:w-auto" onClick={startTotp} disabled={loading || !capabilities.totp} title={!capabilities.totp ? 'Configure PostgreSQL and MFA secrets on the server first' : undefined}><Shield size={15} /> Set up authenticator</button>{!capabilities.totp && <p className="mt-2 text-xs text-[#81766d]">Requires PostgreSQL plus MFA_ENCRYPTION_KEY and RECOVERY_CODE_PEPPER in server/.env.</p>}</>}
         {recoveryCodes.length > 0 && <div className="mt-4 rounded-xl border border-amber-700/40 bg-amber-950/20 p-4"><p className="text-xs font-bold text-amber-100">Save these one-time recovery codes</p><div className="mt-3 grid grid-cols-2 gap-2 font-mono text-xs text-[#f4d5b6]">{recoveryCodes.map(codeItem => <span key={codeItem}>{codeItem}</span>)}</div><div className="mt-4 flex gap-2"><button onClick={() => navigator.clipboard?.writeText(recoveryCodes.join('\n'))} className="auth-small-button"><Copy size={14} /> Copy</button><button onClick={exportRecovery} className="auth-small-button"><Download size={14} /> Download</button></div></div>}
       </Panel>
 
       <Panel icon={Fingerprint} title="Passkeys" description="Use a device screen lock or security key for passwordless sign-in.">
         {passkeys.length ? <ul className="space-y-2">{passkeys.map(item => <li key={item.id} className="flex items-center justify-between rounded-xl bg-[#211d19] p-3 text-xs text-white"><span>{item.name || item.label || 'Passkey'}<small className="block text-[#82786f]">Added {item.createdAt || item.created_at || ''}</small></span><button onClick={() => act(() => authApi.revokePasskey(item.id), 'Passkey removed.')} className="text-red-300">Remove</button></li>)}</ul> : <div className="rounded-xl border border-dashed border-[#38302a] p-4 text-xs text-[#898077]">No passkeys are registered.</div>}
-        <button disabled title="Passkey registration requires the WebAuthn server endpoints to be configured" className="auth-secondary mt-3 sm:w-auto"><Fingerprint size={15} /> Add a passkey <span className="text-[10px] text-[#8c827a]">(server unavailable)</span></button>
+        <button onClick={addPasskey} disabled={loading} className="auth-secondary mt-3 sm:w-auto"><Fingerprint size={15} /> Add a passkey</button>
       </Panel>
 
       <Panel icon={Laptop} title="Active sessions" description="Review devices that have access to your account and revoke sessions you no longer use.">
@@ -110,8 +139,8 @@ export default function AccountSecurity({ user, onLogout }) {
         <button onClick={exportData} className="auth-secondary sm:w-auto" disabled={loading}><Download size={15} /> Export my data</button>
       </Panel>
 
-      <Panel icon={AlertTriangle} title="Delete account" description="Account deletion is permanent. Re-enter your password to confirm the request.">
-        <form onSubmit={deleteAccount} className="space-y-3"><label htmlFor="delete-password" className="block text-xs font-semibold text-[#c8bfb8]">Password confirmation</label><input id="delete-password" type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} className="auth-input" required /><button className="auth-danger" disabled={loading}><Trash2 size={15} /> Delete account</button></form>
+      <Panel icon={AlertTriangle} title="Delete account" description="Account deletion is permanent and requires a recent sign-in.">
+        <form onSubmit={deleteAccount} className="space-y-3">{user?.hasPassword && <><label htmlFor="delete-password" className="block text-xs font-semibold text-[#c8bfb8]">Password confirmation</label><input id="delete-password" type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} className="auth-input" required /></>}<button className="auth-danger" disabled={loading}><Trash2 size={15} /> Delete account</button></form>
       </Panel>
     </div>
 

@@ -70,6 +70,12 @@ export async function verifyTotpCode(secret, token) {
   return result.valid;
 }
 
+async function verifiedTotpStep(secret, token) {
+  if (!/^\d{6}$/.test(String(token || ''))) return null;
+  const result = await verify({ secret, token: String(token), epochTolerance: 30 });
+  return result.valid ? Number(result.timeStep) : null;
+}
+
 function newRecoveryCode() {
   const raw = randomBytes(20).toString('hex').toUpperCase();
   return `${raw.slice(0, 5)}-${raw.slice(5, 10)}-${raw.slice(10, 15)}-${raw.slice(15)}`;
@@ -77,16 +83,17 @@ function newRecoveryCode() {
 
 export async function enableTotp(pool, userId, token) {
   const secret = await getPendingSecret(pool, userId);
-  if (!secret || !(await verifyTotpCode(secret, token))) return null;
+  const timeStep = secret ? await verifiedTotpStep(secret, token) : null;
+  if (timeStep === null) return null;
 
   const codes = Array.from({ length: RECOVERY_CODE_COUNT }, newRecoveryCode);
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     const enabled = await client.query(
-      `UPDATE mfa_methods SET enabled_at = now()
+      `UPDATE mfa_methods SET enabled_at = now(), last_totp_counter = $2
        WHERE user_id = $1 AND method = 'totp' AND enabled_at IS NULL`,
-      [userId]
+      [userId, timeStep]
     );
     if (!enabled.rowCount) {
       await client.query('ROLLBACK');
@@ -110,13 +117,20 @@ export async function enableTotp(pool, userId, token) {
 
 export async function verifyEnabledTotp(pool, userId, token) {
   const result = await pool.query(
-    `SELECT secret_ciphertext FROM mfa_methods
+    `SELECT secret_ciphertext, last_totp_counter FROM mfa_methods
      WHERE user_id = $1 AND method = 'totp' AND enabled_at IS NOT NULL`,
     [userId]
   );
   if (!result.rowCount) return false;
   const secret = decryptTotpSecret(result.rows[0].secret_ciphertext);
-  return verifyTotpCode(secret, token);
+  const timeStep = await verifiedTotpStep(secret, token);
+  if (timeStep === null || timeStep <= Number(result.rows[0].last_totp_counter || 0)) return false;
+  const consumed = await pool.query(
+    `UPDATE mfa_methods SET last_totp_counter = $2
+     WHERE user_id = $1 AND method = 'totp' AND last_totp_counter < $2`,
+    [userId, timeStep]
+  );
+  return consumed.rowCount === 1;
 }
 
 export async function consumeRecoveryCode(pool, userId, suppliedCode) {

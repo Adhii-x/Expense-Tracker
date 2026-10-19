@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Activity, Apple, ArrowLeft, ArrowRight, Check, Eye, EyeOff, KeyRound, Mail, ShieldCheck } from 'lucide-react';
+import { startAuthentication } from '@simplewebauthn/browser';
 import { useAuth } from '../../context/AuthContext';
-import { authApi } from '../../services/authApi';
+import { authApi, startOAuth } from '../../services/authApi';
 
 const providers = [
   { id: 'google', label: 'Google', icon: 'G' },
@@ -71,6 +72,8 @@ export default function LoginPage({ initialView }) {
   const [busy, setBusy] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [challengeId, setChallengeId] = useState('');
+  const [otpMode, setOtpMode] = useState('email');
+  const [oauthProviders, setOauthProviders] = useState({});
   const strength = useMemo(() => passwordStrength(password), [password]);
   const isRegister = view === 'register';
 
@@ -79,6 +82,25 @@ export default function LoginPage({ initialView }) {
     const timer = window.setInterval(() => setSeconds(value => Math.max(0, value - 1)), 1000);
     return () => window.clearInterval(timer);
   }, [seconds]);
+
+  useEffect(() => {
+    authApi.providers().then(result => setOauthProviders(result.providers || {})).catch(() => setOauthProviders({}));
+    if (params.get('mfa_required') === 'totp') {
+      setOtpMode('totp');
+      setView('otp');
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+    const authError = params.get('auth_error');
+    if (authError) {
+      const messages = {
+        provider_not_configured: 'That provider is not configured yet. Add its credentials and callback URL to server/.env, then restart the API.',
+        provider_sign_in_failed: 'The provider could not complete sign-in. Check its credentials and registered callback URL.',
+        unknown_provider: 'That sign-in provider is not supported.'
+      };
+      setError(messages[authError] || 'Sign-in could not be completed. Please try again.');
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
 
   const run = async (operation) => {
     setBusy(true); setError(''); setNotice('');
@@ -93,12 +115,12 @@ export default function LoginPage({ initialView }) {
     if (isRegister && strength < 3) { setError('Choose a stronger password before continuing.'); return; }
     run(async () => {
       if (isRegister) {
-        await auth.register({ name: name.trim(), email: email.trim(), password, confirmPassword: confirm });
-        setNotice('If the account can be created, it is ready for sign-in. Email verification delivery is not configured yet.');
+        const result = await auth.register({ name: name.trim(), email: email.trim(), password, confirmPassword: confirm });
+        setNotice(result.message || 'Account created. You can sign in now.');
         setView('login');
       } else {
         const result = await auth.login({ email: email.trim(), password });
-        if (result.requiresMfa) setView('otp');
+        if (result.requiresMfa) { setOtpMode('totp'); setCode(''); setView('otp'); }
         else await auth.refresh();
       }
     });
@@ -107,18 +129,33 @@ export default function LoginPage({ initialView }) {
   const requestEmailOtp = () => run(async () => {
     const result = await authApi.requestOtp(email.trim());
     setChallengeId(result.challengeId || '');
+    setOtpMode('email');
     setView('otp'); setSeconds(30);
     setNotice('If this address is eligible, a verification code is on its way.');
+  });
+
+  const resendVerification = () => run(async () => {
+    const result = await authApi.requestVerification(email.trim());
+    setNotice(result.message || 'If this account needs verification, a link will be sent.');
   });
 
   const submitOtp = (event) => {
     event.preventDefault();
     run(async () => {
-      const result = await authApi.verifyOtp(challengeId, code);
-      if (result.user) await auth.refresh();
-      else setNotice('Code accepted by the service. Continue the sign-in flow to finish.');
+      const result = otpMode === 'totp' ? await authApi.verifyTotp(code) : await authApi.verifyOtp(challengeId, code);
+      if (result.requiresMfa) { setOtpMode('totp'); setCode(''); setNotice('Enter the code from your authenticator app.'); }
+      else if (result.user) await auth.refresh();
+      else setNotice('Code accepted.');
     });
   };
+
+  const signInWithPasskey = () => run(async () => {
+    const { options } = await authApi.passkeyAuthenticationOptions();
+    const response = await startAuthentication({ optionsJSON: options });
+    const result = await authApi.passkeyAuthenticationVerify(response);
+    if (result.requiresMfa) { setOtpMode('totp'); setCode(''); setView('otp'); }
+    else await auth.refresh();
+  });
 
   const submitForgot = (event) => {
     event.preventDefault();
@@ -166,7 +203,7 @@ export default function LoginPage({ initialView }) {
 
         {(view === 'login' || view === 'register') && <>
           <div className="mt-7 grid grid-cols-2 gap-2">
-            {providers.map(({ id, label, icon: Icon }) => <button key={id} type="button" disabled title={`${label} OAuth routes are not implemented on this server yet`} className="flex items-center justify-center gap-2 rounded-xl border border-[#302a26] bg-[#171513] px-3 py-3 text-xs font-semibold text-[#91877e] disabled:cursor-not-allowed disabled:opacity-60"><span className="text-sm font-black">{typeof Icon === 'string' ? Icon : <Icon size={15} />}</span>{label}<span className="sr-only">(OAuth not available)</span></button>)}
+            {providers.map(({ id, label, icon: Icon }) => <button key={id} type="button" disabled={busy} onClick={() => oauthProviders[id] ? startOAuth(id) : setError(`${label} sign-in needs provider credentials in server/.env. See the README setup instructions.`)} title={oauthProviders[id] ? `Continue with ${label}` : `${label} credentials are not configured`} className="flex items-center justify-center gap-2 rounded-xl border border-[#302a26] bg-[#171513] px-3 py-3 text-xs font-semibold text-[#b2a69d] hover:border-[#ff8a24] hover:text-white disabled:cursor-not-allowed disabled:opacity-60"><span className="text-sm font-black">{typeof Icon === 'string' ? Icon : <Icon size={15} />}</span>{label}</button>)}
           </div>
           <div className="my-6 flex items-center gap-3 text-[10px] text-[#716860]"><span className="h-px flex-1 bg-[#2b2622]" />OR CONTINUE WITH EMAIL<span className="h-px flex-1 bg-[#2b2622]" /></div>
         </>}
@@ -174,9 +211,11 @@ export default function LoginPage({ initialView }) {
         {view === 'login' && <form onSubmit={submit} className="space-y-4">
           <div><label htmlFor="auth-email" className="block text-xs font-semibold text-[#c8bfb8] mb-2">Email address</label><input id="auth-email" type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} className="auth-input" required /></div>
           <PasswordField value={password} onChange={e => setPassword(e.target.value)} />
-          <div className="flex justify-end"><span className="text-xs text-[#81766d]" title="Configure SMTP and password reset routes to enable this option">Password recovery is not configured</span></div>
+          <div className="flex justify-end"><button type="button" onClick={() => setView('forgot')} className="text-xs font-semibold text-[#ff9b52] hover:text-white">Forgot password?</button></div>
           <button disabled={busy} className="auth-primary"><span>{busy ? 'Signing in…' : 'Sign in securely'}</span><ArrowRight size={17} /></button>
-          <p className="text-center text-xs text-[#81766d]" role="note">Email-code sign-in is not configured. Use your password to sign in.</p>
+          <button type="button" onClick={signInWithPasskey} disabled={busy} className="auth-secondary"><KeyRound size={16} /> Sign in with a passkey</button>
+          <button type="button" onClick={requestEmailOtp} disabled={busy || !email} className="auth-secondary"><Mail size={16} /> Continue with email code</button>
+          <button type="button" onClick={resendVerification} disabled={busy || !email} className="auth-back">Resend email verification</button>
           <p className="text-center text-xs text-[#8e847c] pt-2">New to Expense Tracker? <button type="button" onClick={() => { setView('register'); setError(''); }} className="font-bold text-[#ff9b52] hover:text-white">Create an account</button></p>
         </form>}
 
@@ -210,9 +249,9 @@ export default function LoginPage({ initialView }) {
         </form>}
 
         {view === 'otp' && <form onSubmit={submitOtp} className="space-y-4">
-          <div><label htmlFor="auth-code" className="block text-xs font-semibold text-[#c8bfb8] mb-2">6-digit verification code</label><input id="auth-code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={code} onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} className="auth-input text-center tracking-[0.5em] text-lg font-bold" required /></div>
+          <div><label htmlFor="auth-code" className="block text-xs font-semibold text-[#c8bfb8] mb-2">{otpMode === 'totp' ? 'Authenticator or recovery code' : '6-digit verification code'}</label><input id="auth-code" inputMode={otpMode === 'totp' ? 'text' : 'numeric'} autoComplete="one-time-code" pattern={otpMode === 'totp' ? undefined : '[0-9]{6}'} maxLength={otpMode === 'totp' ? 32 : 6} value={code} onChange={e => setCode(otpMode === 'totp' ? e.target.value : e.target.value.replace(/\D/g, '').slice(0, 6))} className="auth-input text-center tracking-[0.5em] text-lg font-bold" required /></div>
           <button disabled={busy || code.length !== 6} className="auth-primary">{busy ? 'Verifying…' : 'Verify and continue'}<KeyRound size={17} /></button>
-          <button type="button" disabled={seconds > 0 || busy} onClick={() => { setSeconds(30); requestEmailOtp(); }} className="auth-back disabled:opacity-50">{seconds ? `Resend available in ${seconds}s` : 'Resend code'}</button>
+          {otpMode === 'email' && <button type="button" disabled={seconds > 0 || busy} onClick={() => { setSeconds(30); requestEmailOtp(); }} className="auth-back disabled:opacity-50">{seconds ? `Resend available in ${seconds}s` : 'Resend code'}</button>}
         </form>}
 
         {(error || auth.serviceError) && <div role="alert" className="mt-4 rounded-xl border border-red-900/70 bg-red-950/40 px-4 py-3 text-xs text-red-200">{error || auth.serviceError}</div>}

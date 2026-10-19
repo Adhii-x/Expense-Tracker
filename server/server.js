@@ -27,14 +27,19 @@ const clientOrigins = (process.env.CLIENT_URL || 'http://localhost:5173')
   .split(',').map(value => value.trim()).filter(Boolean);
 app.disable('x-powered-by');
 app.use(helmet());
-app.use(cors({
+const corsMiddleware = cors({
   origin(origin, callback) {
     if (!origin || clientOrigins.includes(origin)) return callback(null, true);
     return callback(new Error('Origin is not allowed by CORS.'));
   },
   credentials: true
-}));
+});
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/auth/oauth/') && req.path.endsWith('/callback')) return next();
+  return corsMiddleware(req, res, next);
+});
 app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: false, limit: '32kb' }));
 
 const { Pool } = pg;
 const authPool = process.env.DATABASE_URL
@@ -58,6 +63,39 @@ if (authPool) {
     );
     CREATE UNIQUE INDEX IF NOT EXISTS auth_users_email_active_uq
       ON auth_users (lower(email)) WHERE deleted_at IS NULL;
+    CREATE TABLE IF NOT EXISTS oauth_identities (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID NOT NULL REFERENCES auth_users(id) ON DELETE CASCADE,
+      provider TEXT NOT NULL CHECK (provider IN ('google','github','microsoft','apple')),
+      provider_subject TEXT NOT NULL, email TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), UNIQUE(provider, provider_subject)
+    );
+    CREATE TABLE IF NOT EXISTS auth_tokens (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID NOT NULL REFERENCES auth_users(id) ON DELETE CASCADE,
+      purpose TEXT NOT NULL CHECK (purpose IN ('verify_email','reset_password','magic_link','email_otp','sms_otp')),
+      token_hash BYTEA NOT NULL, destination TEXT, attempts SMALLINT NOT NULL DEFAULT 0,
+      expires_at TIMESTAMPTZ NOT NULL, consumed_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    CREATE INDEX IF NOT EXISTS auth_tokens_lookup_idx ON auth_tokens(purpose, token_hash) WHERE consumed_at IS NULL;
+    CREATE TABLE IF NOT EXISTS mfa_methods (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID NOT NULL REFERENCES auth_users(id) ON DELETE CASCADE,
+      method TEXT NOT NULL CHECK (method IN ('totp','email','sms')), secret_ciphertext BYTEA,
+      enabled_at TIMESTAMPTZ, last_totp_counter BIGINT NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(), UNIQUE(user_id, method)
+    );
+    ALTER TABLE mfa_methods ADD COLUMN IF NOT EXISTS last_totp_counter BIGINT NOT NULL DEFAULT 0;
+    CREATE TABLE IF NOT EXISTS mfa_recovery_codes (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID NOT NULL REFERENCES auth_users(id) ON DELETE CASCADE,
+      code_hash BYTEA NOT NULL, consumed_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    CREATE TABLE IF NOT EXISTS passkey_credentials (
+      credential_id TEXT PRIMARY KEY, user_id UUID NOT NULL REFERENCES auth_users(id) ON DELETE CASCADE,
+      public_key BYTEA NOT NULL, counter BIGINT NOT NULL DEFAULT 0, transports TEXT[] NOT NULL DEFAULT '{}',
+      label TEXT NOT NULL DEFAULT 'Passkey', created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      last_used_at TIMESTAMPTZ, revoked_at TIMESTAMPTZ
+    );
+    CREATE TABLE IF NOT EXISTS security_events (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID REFERENCES auth_users(id) ON DELETE SET NULL,
+      event_type TEXT NOT NULL, ip_hash BYTEA, user_agent TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
   `);
 } else {
   console.warn('Authentication is using temporary in-memory users and sessions. Set DATABASE_URL for persistence.');
@@ -85,7 +123,8 @@ if (authMode === 'authenticated') {
   }));
 }
 
-app.use('/api/auth', createAuthOriginGuard(clientOrigins));
+const authOriginGuard = createAuthOriginGuard(clientOrigins);
+app.use('/api/auth', (req, res, next) => req.path.startsWith('/oauth/') ? next() : authOriginGuard(req, res, next));
 app.use('/api/auth', createAuthRouter({ pool: authPool }));
 app.use('/api', (req, res, next) => {
   if (authMode !== 'authenticated' || req.path === '/health' || req.path.startsWith('/auth/')) return next();
@@ -1034,7 +1073,7 @@ app.use((error, req, res, next) => {
     next(error);
     return;
   }
-  res.status(500).json({ success: false, error: 'The request could not be completed.' });
+  res.status(error.status || 500).json({ success: false, error: error.status ? error.message : 'The request could not be completed.' });
 });
 
 app.listen(PORT, () => {
