@@ -17,6 +17,7 @@ import { createAuthRouter } from './routes/auth.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.join(__dirname, '.env') });
+console.log('Google OAuth configured:', Boolean(process.env.GOOGLE_CLIENT_ID));
 
 const { mode: authMode } = validateEnvironment();
 
