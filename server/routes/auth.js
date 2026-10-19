@@ -320,6 +320,7 @@ export function createAuthRouter({ pool = null }) {
   });
 
   const oauthCallback = async (req, res) => {
+    let failureStage = 'callback_processing_failed';
     try {
       const provider = req.params.provider;
       const params = req.method === 'POST' ? req.body : req.query;
@@ -327,20 +328,33 @@ export function createAuthRouter({ pool = null }) {
       const cookieState = String(req.get('cookie') || '').split(';').map(part => part.trim()).find(part => part.startsWith('expense.oauth_state='))?.slice('expense.oauth_state='.length) || '';
       const flow = oauthStates.get(state);
       oauthStates.delete(state);
-      if (!flow || flow.provider !== provider || flow.expiresAt <= Date.now() || !safeEqual(cookieState, state)) throw new Error('The sign-in session expired. Please try again.');
+      if (!flow || flow.provider !== provider || flow.expiresAt <= Date.now() || !safeEqual(cookieState, state)) {
+        failureStage = 'state_or_cookie_mismatch';
+        throw new Error('The sign-in session expired. Please try again.');
+      }
       res.clearCookie('expense.oauth_state', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/api/auth/oauth' });
-      if (params.error || !params.code) throw new Error('The identity provider did not complete sign-in.');
+      if (params.error || !params.code) {
+        const providerError = String(params.error || 'missing_code').toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 40) || 'unknown';
+        failureStage = `provider_authorization_${providerError}`;
+        throw new Error('The identity provider did not complete sign-in.');
+      }
       const config = oauthConfig[provider];
+      failureStage = 'token_exchange_failed';
       const tokenUrl = provider === 'google' ? 'https://oauth2.googleapis.com/token'
         : 'https://github.com/login/oauth/access_token';
       const body = new URLSearchParams({ grant_type: 'authorization_code', code: String(params.code), redirect_uri: config.callback, client_id: config.id, client_secret: config.secret });
       body.set('code_verifier', flow.verifier);
       const tokenResponse = await fetch(tokenUrl, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded', accept: 'application/json' }, body });
       const tokens = await tokenResponse.json();
-      if (!tokenResponse.ok || !tokens.access_token) throw new Error('The identity provider could not verify this sign-in. Check its callback and credentials.');
+      if (!tokenResponse.ok || !tokens.access_token) {
+        const providerError = String(tokens.error || `http_${tokenResponse.status}`).toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 40);
+        failureStage = `token_exchange_${providerError || 'rejected'}`;
+        throw new Error('The identity provider could not verify this sign-in. Check its callback and credentials.');
+      }
 
       let identity;
       if (provider === 'github') {
+        failureStage = 'github_profile_verification_failed';
         const headers = { authorization: `Bearer ${tokens.access_token}`, accept: 'application/vnd.github+json', 'x-github-api-version': '2022-11-28' };
         const [userResponse, emailsResponse] = await Promise.all([fetch('https://api.github.com/user', { headers }), fetch('https://api.github.com/user/emails', { headers })]);
         if (!userResponse.ok || !emailsResponse.ok) throw new Error('GitHub did not return a verified account profile.');
@@ -350,6 +364,7 @@ export function createAuthRouter({ pool = null }) {
         if (!verified?.email || !githubUser.id) throw new Error('Verify an email address with GitHub before using it to sign in.');
         identity = { subject: String(githubUser.id), email: verified.email, emailVerified: true, name: githubUser.name || githubUser.login };
       } else {
+        failureStage = 'google_identity_token_verification_failed';
         if (!tokens.id_token) throw new Error('The identity provider did not return an identity token.');
         const issuer = ['https://accounts.google.com', 'accounts.google.com'];
         const jwksUrl = 'https://www.googleapis.com/oauth2/v3/certs';
@@ -364,13 +379,14 @@ export function createAuthRouter({ pool = null }) {
           name: payload.name || payload.email || 'Google user'
         };
       }
+      failureStage = 'account_linking_failed';
       const user = await createOAuthIdentity(provider, identity.subject, identity);
       if (await startMfaChallenge(req, user)) return res.redirect(`${publicClientUrl}/?mfa_required=totp`);
       await issueSession(req, user);
       return res.redirect(`${publicClientUrl}/?oauth=success`);
     } catch (error) {
       const code = error.message.includes('not configured') ? 'provider_not_configured' : 'provider_sign_in_failed';
-      console.error(`OAuth sign-in failed for ${req.params.provider}: ${code}`);
+      console.error(`OAuth sign-in failed for ${req.params.provider}: ${code}; stage=${failureStage}`);
       return res.redirect(`${publicClientUrl}/?auth_error=${code}`);
     }
   };
