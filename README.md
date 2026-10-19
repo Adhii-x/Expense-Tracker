@@ -176,6 +176,62 @@ Open your browser at **`http://localhost:5173`**.
 
 ## 🌐 Deploying to Vercel (For Final Submission)
 
+> **Security status:** This repository currently runs in shared demo mode. Its
+> financial API is not authenticated and all server-side demo data is shared.
+> Production startup now fails closed in `server/config/env.js`. Do not bypass
+> that guard or expose the demo API publicly. The authentication schema in
+> `server/db/schema.sql` is a foundation only; registration, sessions, user-owned
+> financial storage, OAuth, OTP, MFA, and passkeys are not yet implemented.
+
+The Vercel frontend-only demo can still be deployed for a presentation, but it
+must not be described as a multi-user or production financial service. The
+backend must remain private until the per-user data migration and authorization
+work is complete. Existing `server/data/db.json` records remain demo data and
+must not be assigned automatically to a new account.
+
+### Authentication database foundation
+
+Back up PostgreSQL before applying any schema. To apply the additive auth schema
+manually, run `psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f server/db/schema.sql`.
+The schema creates identity, session, token, MFA, passkey, and audit tables; it
+does not change or migrate the legacy financial tables. Rollback requires a
+separate backup because dropping auth tables would permanently remove accounts
+and security history.
+
+Before production authentication can be enabled, implement and test a migration
+that assigns existing records only through an explicit, user-confirmed import,
+then add `user_id` ownership and authorization to every financial operation.
+Never migrate the existing shared demo ledger into the first account by default.
+
+`server/.env.example` lists intended provider settings. Blank OAuth, SMTP, SMS,
+and WebAuthn values mean those integrations are unavailable; this code does not
+fake successful sign-ins. Use HTTPS, provider-registered callback URLs, a
+dedicated PostgreSQL database, a secret manager, and backups when the missing
+auth implementation is completed.
+
+The `AUTH_MODE=demo` configuration is strictly for local development. The
+backend rejects `NODE_ENV=production` until authenticated sessions and isolated
+financial storage are actually enforced.
+
+### Authentication UI mode
+
+Copy `client/.env.example` to `client/.env.local` to choose the public UI mode.
+`VITE_AUTH_MODE=demo` preserves the current sample dashboard. Setting
+`VITE_AUTH_MODE=authenticated` shows the sign-in and account-security experience
+and keeps the shared demo ledger out of that mode. Vite variables are public;
+never place provider secrets, session keys, or database credentials in the
+client environment. The forms target the documented `/api/auth/*` routes, which
+still need a real server-side session/auth implementation before they can sign
+users in. Social buttons and passkey registration remain unavailable until
+their backend integrations exist.
+
+TOTP primitives now use `otplib` and `qrcode`. Enrollment secrets are encrypted
+with AES-256-GCM using `MFA_ENCRYPTION_KEY`; recovery codes are stored as
+peppered SHA-256 hashes using `RECOVERY_CODE_PEPPER`. The service functions are
+not yet connected to authenticated routes because this repository does not yet
+have a validated server-side user session. Do not treat TOTP as enabled until
+that session and login challenge flow is implemented.
+
 1. Push your repository to **GitHub**:
    ```bash
    git add .

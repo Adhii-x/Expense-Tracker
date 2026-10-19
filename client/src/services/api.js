@@ -8,6 +8,31 @@ const STORAGE_KEY_GOALS = 'expensetracker_goals_v1';
 
 const API_BASE = '/api';
 
+// Shared credential-aware request helper for cookie-authenticated endpoints.
+export async function apiRequest(path, options = {}) {
+  let response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, {
+      credentials: 'include',
+      ...options,
+      headers: {
+        ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+        ...(options.headers || {})
+      }
+    });
+  } catch {
+    throw new Error('Can’t reach the authentication service. Check that the API server is running.');
+  }
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(payload.error || 'This authentication feature is not available on the server yet.');
+    error.status = response.status;
+    throw error;
+  }
+  return payload;
+}
+
 export const INITIAL_CARDS = [
   {
     id: 'card-1',

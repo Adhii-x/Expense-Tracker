@@ -5,6 +5,9 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import 'dotenv/config';
 import { createDataStore } from './database.js';
+import { validateEnvironment } from './config/env.js';
+
+validateEnvironment();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

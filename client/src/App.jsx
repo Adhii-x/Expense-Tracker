@@ -13,6 +13,9 @@ import CommandPalette from './components/CommandPalette';
 import EditModal from './components/EditModal';
 import Toast from './components/Toast';
 import WellthPlanHealthScore from './components/WellthPlanHealthScore';
+import LoginPage from './components/auth/LoginPage';
+import AuthenticatedShell from './components/auth/AuthenticatedShell';
+import { useAuth } from './context/AuthContext';
 
 import {
   testBackendConnection,
@@ -35,7 +38,7 @@ import {
 } from './services/api';
 import { downloadCsv } from './utils';
 
-export default function App() {
+function DemoApp() {
   const [activeTab, setActiveTab] = useState('analytics'); // Initial view matching the photo!
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
@@ -459,4 +462,12 @@ export default function App() {
 
     </div>
   );
+}
+
+export default function App() {
+  const auth = useAuth();
+  if (!auth.enabled) return <DemoApp />;
+  if (auth.loading) return <div className="min-h-screen bg-[#0e0d0c] grid place-items-center text-sm text-[#a99f97]" role="status">Checking your secure session…</div>;
+  if (!auth.user) return <LoginPage />;
+  return <AuthenticatedShell />;
 }

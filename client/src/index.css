@@ -34,6 +34,63 @@
   animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+.auth-input {
+  display: block;
+  width: 100%;
+  border-radius: 0.85rem;
+  border: 1px solid #342d28;
+  background: #171513;
+  padding: 0.8rem 0.9rem;
+  color: #f5f1ed;
+  font-size: 0.875rem;
+  outline: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+.auth-input:focus {
+  border-color: #ff8a24;
+  box-shadow: 0 0 0 3px rgb(255 138 36 / 14%);
+}
+.auth-input::placeholder { color: #716860; }
+.auth-primary, .auth-secondary, .auth-danger {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  border-radius: 0.85rem;
+  padding: 0.82rem 1rem;
+  font-size: 0.8rem;
+  font-weight: 750;
+  transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+.auth-primary { color: white; background: linear-gradient(105deg, #ff7a18, #e45300); box-shadow: 0 8px 24px rgb(226 83 0 / 18%); }
+.auth-primary:hover:not(:disabled) { background: linear-gradient(105deg, #ff8d38, #f06513); transform: translateY(-1px); }
+.auth-secondary { border: 1px solid #342d28; background: #171513; color: #dfd7d0; }
+.auth-secondary:hover:not(:disabled) { border-color: #5a4637; background: #201b17; }
+.auth-danger { width: auto; color: #fecaca; border: 1px solid rgb(127 29 29 / 75%); background: rgb(69 10 10 / 35%); }
+.auth-danger:hover:not(:disabled) { background: rgb(127 29 29 / 40%); }
+.auth-small-button, .auth-icon-button, .auth-back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border-radius: 0.7rem;
+  border: 1px solid #38302a;
+  padding: 0.55rem 0.75rem;
+  color: #d9d0c9;
+  font-size: 0.7rem;
+  font-weight: 650;
+}
+.auth-small-button:hover, .auth-icon-button:hover, .auth-back:hover { background: #24201c; color: white; }
+.auth-icon-button { padding: 0.65rem; }
+.auth-back { border: 0; background: transparent; color: #a79b91; }
+.auth-primary:focus-visible, .auth-secondary:focus-visible, .auth-danger:focus-visible,
+.auth-small-button:focus-visible, .auth-icon-button:focus-visible, .auth-back:focus-visible {
+  outline: 2px solid #ff9b52;
+  outline-offset: 2px;
+}
+.auth-primary:disabled, .auth-secondary:disabled, .auth-danger:disabled { cursor: not-allowed; opacity: 0.55; }
+
 /* Custom dark scrollbars */
 ::-webkit-scrollbar {
   width: 5px;
