@@ -9,13 +9,11 @@ import {
   HardDrive,
   RefreshCw
 } from 'lucide-react';
-import { CURRENCIES } from '../constants';
+
 
 export default function Navbar({
   darkMode,
   setDarkMode,
-  currency,
-  setCurrency,
   backendOnline,
   checkBackend,
   onExportCsv,
@@ -73,25 +71,6 @@ export default function Navbar({
               </>
             )}
             <RefreshCw className={`w-3 h-3 ml-1 opacity-70 ${isCheckingBackend ? 'animate-spin' : ''}`} />
-          </div>
-
-          {/* Currency Selector */}
-          <div className="relative">
-            <select
-              value={currency}
-              onChange={(e) => setCurrency(e.target.value)}
-              className="appearance-none bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs sm:text-sm font-medium py-1.5 pl-3 pr-7 rounded-lg border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-              title="Select display currency"
-            >
-              {CURRENCIES.map(c => (
-                <option key={c.code} value={c.code}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-            <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">
-              ▼
-            </span>
           </div>
 
           {/* Export CSV Button */}

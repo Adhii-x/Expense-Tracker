@@ -39,7 +39,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('analytics'); // Initial view matching the photo!
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
-  const [currency, setCurrency] = useState('INR'); // User photos showed rupees "Make every rupee count"
+  const currency = 'INR';
   const [selectedMonth, setSelectedMonth] = useState('2026-10'); // October 2026 matching photo
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -84,8 +84,7 @@ export default function App() {
 
     setTransactions(txData);
     if (budgetData) {
-      setBudget(budgetData);
-      if (budgetData.currency) setCurrency(budgetData.currency);
+      setBudget({ ...budgetData, currency: 'INR' });
     }
     if (cardsData) setCards(cardsData);
     if (goalsData) setGoals(goalsData);
@@ -191,7 +190,7 @@ export default function App() {
 
   // Export CSV
   const handleExportCsv = () => {
-    downloadCsv(transactions, currency);
+    downloadCsv(transactions);
     showToast(`Exported ${transactions.length} transactions to CSV spreadsheet!`, 'success');
   };
 
@@ -281,7 +280,6 @@ export default function App() {
         setDarkMode={setDarkMode}
         isCollapsed={isCollapsed}
         setIsCollapsed={setIsCollapsed}
-        currency={currency}
       />
 
       {/* 2. Main Content Canvas */}
@@ -295,8 +293,6 @@ export default function App() {
           availableMonths={availableMonths}
           searchTerm={searchTerm}
           setSearchTerm={setSearchTerm}
-          currency={currency}
-          setCurrency={setCurrency}
           onAddTransactionClick={() => setQuickModal('expense')}
           onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
         />
@@ -380,8 +376,6 @@ export default function App() {
           {/* VIEW: Settings */}
           {activeTab === 'settings' && (
             <SettingsView
-              currency={currency}
-              setCurrency={setCurrency}
               onResetDemo={handleResetDemo}
               onExportCsv={handleExportCsv}
               totalTransactions={transactions.length}
@@ -427,7 +421,6 @@ export default function App() {
         defaultType={quickModal || 'expense'}
         onClose={() => setQuickModal(null)}
         onAddTransaction={handleAddTransaction}
-        currency={currency}
       />
 
       {/* AI Receipt Vision OCR Modal */}
@@ -459,7 +452,6 @@ export default function App() {
         isOpen={Boolean(editingTransaction)}
         onClose={() => setEditingTransaction(null)}
         onSave={handleUpdateTransaction}
-        currency={currency}
       />
 
       {/* Toast Alert Notifications */}

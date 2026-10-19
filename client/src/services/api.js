@@ -92,13 +92,15 @@ export function getLocalBudget() {
   try {
     const stored = localStorage.getItem(STORAGE_KEY_BUDGET);
     if (!stored) {
-      const def = { monthlyLimit: 1500, currency: 'USD' };
+      const def = { monthlyLimit: 25000, currency: 'INR' };
       localStorage.setItem(STORAGE_KEY_BUDGET, JSON.stringify(def));
       return def;
     }
-    return JSON.parse(stored);
+    const budget = { ...JSON.parse(stored), currency: 'INR' };
+    localStorage.setItem(STORAGE_KEY_BUDGET, JSON.stringify(budget));
+    return budget;
   } catch (e) {
-    return { monthlyLimit: 1500, currency: 'USD' };
+    return { monthlyLimit: 25000, currency: 'INR' };
   }
 }
 
@@ -448,7 +450,7 @@ export async function scanReceiptApi(sampleReceipt, isBackendOnline) {
       amount: 14.75,
       type: 'expense',
       category: 'Food & Dining',
-      items: ['Caramel Oat Latte ($5.50)', 'Avocado Sourdough Toast ($8.25)', 'Tax ($1.00)'],
+      items: ['Caramel Oat Latte (₹5.50)', 'Avocado Sourdough Toast (₹8.25)', 'Tax (₹1.00)'],
       notes: 'Scanned with FinAI Vision OCR (Confidence: 98.4%)'
     },
     bookstore: {
@@ -523,10 +525,10 @@ export async function askAiAgentApi(prompt, context, isBackendOnline) {
   let suggestedActions = [];
 
   if (query.includes('save') || query.includes('cut') || query.includes('reduce')) {
-    reply = `💡 **FinAI Personalized Savings Strategy:**\n\n1. **High Outflow Area:** Your top expense driver is **${topCategory[0]}** ($${topCategory[1].toFixed(2)}). Reducing this by 15% recovers **$${(topCategory[1] * 0.15).toFixed(2)}** every month.\n2. **Micro-Spends Alert:** Small daily purchases accumulate rapidly. Setting a $10/day discretionary cap yields **$300/mo** in surplus cashflow.\n3. **Automate the 20% Rule:** Move $${(totalIncome * 0.20).toFixed(2)} straight to your savings card on deposit day.`;
+    reply = `💡 **FinAI Personalized Savings Strategy:**\n\n1. **High Outflow Area:** Your top expense driver is **${topCategory[0]}** (₹${topCategory[1].toFixed(2)}). Reducing this by 15% recovers **₹${(topCategory[1] * 0.15).toFixed(2)}** every month.\n2. **Micro-Spends Alert:** Small daily purchases accumulate rapidly. Setting a ₹10/day discretionary cap yields **₹300/mo** in surplus cashflow.\n3. **Automate the 20% Rule:** Move ₹${(totalIncome * 0.20).toFixed(2)} straight to your savings card on deposit day.`;
     suggestedActions = ['Set strict budget limit', 'Export CSV ledger', 'Review category pie chart'];
   } else if (query.includes('budget') || query.includes('limit') || query.includes('warning')) {
-    reply = `📊 **Real-time Budget Audit:**\n\n- **Monthly Allowance:** $${budgetLimit.toLocaleString()}\n- **Current Spend:** $${totalExpenses.toFixed(2)} (${pct}% allocated)\n- **Status:** ${pct >= 100 ? '🚨 Exceeded threshold by $' + (totalExpenses - budgetLimit).toFixed(2) : pct >= 80 ? '⚠️ Warning: Near maximum allocation' : '✅ Optimal budget buffer remaining'}.\n\n*Recommendation:* Allocate 50% for Essentials, 30% for Personal Lifestyle, and 20% for Wealth Creation.`;
+    reply = `📊 **Real-time Budget Audit:**\n\n- **Monthly Allowance:** ₹${budgetLimit.toLocaleString('en-IN')}\n- **Current Spend:** ₹${totalExpenses.toFixed(2)} (${pct}% allocated)\n- **Status:** ${pct >= 100 ? '🚨 Exceeded threshold by ₹' + (totalExpenses - budgetLimit).toFixed(2) : pct >= 80 ? '⚠️ Warning: Near maximum allocation' : '✅ Optimal budget buffer remaining'}.\n\n*Recommendation:* Allocate 50% for Essentials, 30% for Personal Lifestyle, and 20% for Wealth Creation.`;
     suggestedActions = ['Adjust budget threshold', 'Audit recent transactions'];
   } else if (query.includes('afford') || query.includes('buy') || query.includes('purchase')) {
     const nums = query.match(/\d+(\.\d+)?/g);
@@ -534,15 +536,15 @@ export async function askAiAgentApi(prompt, context, isBackendOnline) {
     const canAfford = totalBalance >= amount && (totalExpenses + amount) <= budgetLimit;
 
     reply = canAfford
-      ? `✅ **Affordability Approved:** You can safely afford **$${amount.toFixed(2)}**!\n\nYour net reserve is **$${totalBalance.toFixed(2)}**. Following this purchase, you'll still hold **$${(totalBalance - amount).toFixed(2)}** in liquidity.`
-      : `⚠️ **Caution Advised:** Spending **$${amount.toFixed(2)}** will reduce your reserves to **$${(totalBalance - amount).toFixed(2)}** and drive budget utilization to ${Math.round(((totalExpenses + amount) / budgetLimit) * 100)}%. We suggest waiting until the next income cycle.`;
+      ? `✅ **Affordability Approved:** You can safely afford **₹${amount.toFixed(2)}**!\n\nYour net reserve is **₹${totalBalance.toFixed(2)}**. Following this purchase, you'll still hold **₹${(totalBalance - amount).toFixed(2)}** in liquidity.`
+      : `⚠️ **Caution Advised:** Spending **₹${amount.toFixed(2)}** will reduce your reserves to **₹${(totalBalance - amount).toFixed(2)}** and drive budget utilization to ${Math.round(((totalExpenses + amount) / budgetLimit) * 100)}%. We suggest waiting until the next income cycle.`;
     suggestedActions = ['Log as planned expense', 'Check card balances'];
   } else if (query.includes('predict') || query.includes('forecast') || query.includes('trend')) {
-    reply = `🔮 **30-Day Predictive Cashflow Model:**\n\n- **Projected Inflow:** ~$${totalIncome.toFixed(2)}\n- **Projected Outflow:** ~$${(totalExpenses * 0.94).toFixed(2)}\n- **Expected Net Surplus:** ~$${(totalBalance + 150).toFixed(2)}\n\nYour cash retention rate has improved by **+3.52%** compared to previous cycles!`;
+    reply = `🔮 **30-Day Predictive Cashflow Model:**\n\n- **Projected Inflow:** ~₹${totalIncome.toFixed(2)}\n- **Projected Outflow:** ~₹${(totalExpenses * 0.94).toFixed(2)}\n- **Expected Net Surplus:** ~₹${(totalBalance + 150).toFixed(2)}\n\nYour cash retention rate has improved by **+3.52%** compared to previous cycles!`;
     suggestedActions = ['View monthly bar chart', 'Lock target savings'];
   } else {
-    reply = `🤖 **FinAI Copilot Intelligence Report:**\n\n- **Net Balance:** $${totalBalance.toFixed(2)}\n- **Income Flow:** +$${totalIncome.toFixed(2)}\n- **Expense Outflow:** -$${totalExpenses.toFixed(2)}\n- **Financial Health Score:** ${healthScore} / 100\n- **Dominant Category:** ${topCategory[0]} ($${topCategory[1].toFixed(2)})\n\nAsk me anything about budgeting, or say *"Spent $45 on groceries"* to quick-record entries!`;
-    suggestedActions = ['How can I save $200?', 'Can I afford a $100 purchase?', 'Audit my budget limit'];
+    reply = `🤖 **FinAI Copilot Intelligence Report:**\n\n- **Net Balance:** ₹${totalBalance.toFixed(2)}\n- **Income Flow:** +₹${totalIncome.toFixed(2)}\n- **Expense Outflow:** -₹${totalExpenses.toFixed(2)}\n- **Financial Health Score:** ${healthScore} / 100\n- **Dominant Category:** ${topCategory[0]} (₹${topCategory[1].toFixed(2)})\n\nAsk me anything about budgeting, or say *"Spent ₹45 on groceries"* to quick-record entries!`;
+    suggestedActions = ['How can I save ₹200?', 'Can I afford a ₹100 purchase?', 'Audit my budget limit'];
   }
 
   return {
@@ -571,7 +573,7 @@ export async function parseNaturalLanguageTransactionApi(text, isBackendOnline) 
   }
 
   const raw = text.toLowerCase();
-  const amountMatch = text.match(/\$?(\d+(\.\d{1,2})?)/);
+  const amountMatch = text.match(/(?:₹|rs\.?\s*)?(\d+(\.\d{1,2})?)/i);
   const amount = amountMatch ? parseFloat(amountMatch[1]) : 25.00;
 
   const isIncome = raw.includes('received') || raw.includes('earned') || raw.includes('got paid') || raw.includes('salary') || raw.includes('stipend') || raw.includes('grant') || raw.includes('income');
@@ -590,8 +592,8 @@ export async function parseNaturalLanguageTransactionApi(text, isBackendOnline) 
   else if (raw.includes('shoes') || raw.includes('cloth') || raw.includes('shopping')) category = 'Shopping';
 
   let cleanTitle = text
-    .replace(/\$?(\d+(\.\d{1,2})?)/g, '')
-    .replace(/(spent|paid|bought|received|earned|for|on|yesterday|today|dollars|usd)/gi, '')
+    .replace(/(?:₹|rs\.?\s*)?(\d+(\.\d{1,2})?)/gi, '')
+    .replace(/(spent|paid|bought|received|earned|for|on|yesterday|today|rupees|rs)/gi, '')
     .trim();
 
   if (!cleanTitle || cleanTitle.length < 2) {

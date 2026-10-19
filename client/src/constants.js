@@ -23,16 +23,6 @@ export const INCOME_CATEGORIES = [
   'Other Income'
 ];
 
-export const CURRENCIES = [
-  { code: 'USD', symbol: '$', name: 'US Dollar ($)' },
-  { code: 'INR', symbol: '₹', name: 'Indian Rupee (₹)' },
-  { code: 'EUR', symbol: '€', name: 'Euro (€)' },
-  { code: 'GBP', symbol: '£', name: 'British Pound (£)' },
-  { code: 'CAD', symbol: 'CA$', name: 'Canadian Dollar (CA$)' },
-  { code: 'AUD', symbol: 'AU$', name: 'Australian Dollar (AU$)' },
-  { code: 'JPY', symbol: '¥', name: 'Japanese Yen (¥)' }
-];
-
 export const INITIAL_TRANSACTIONS = [
   {
     id: 'tx-1',

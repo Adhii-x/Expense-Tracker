@@ -76,8 +76,6 @@ export default function TransactionsView({
     setSortBy('newest');
   };
 
-  const currencyUnitText = currency === 'INR' ? 'RUPEE' : 'CURRENCY';
-
   return (
     <div className="space-y-6 animate-fade-in">
       
@@ -85,7 +83,7 @@ export default function TransactionsView({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#ff6b00]">
-            EVERY {currencyUnitText}, ACCOUNTED FOR
+            EVERY RUPEE, ACCOUNTED FOR
           </span>
           <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight mt-1">
             Transaction history

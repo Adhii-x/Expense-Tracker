@@ -55,7 +55,7 @@ export default function CardsWidget({
             className="absolute top-0 inset-x-4 h-12 rounded-2xl bg-[#2e2926] border border-[#3d3834] opacity-50 cursor-pointer hover:opacity-75 transition-all flex items-center justify-between px-4 text-xs font-semibold text-[#8c827a]"
           >
             <span>VISA</span>
-            <span>$6,150.00</span>
+            <span>₹6,150.00</span>
           </div>
 
           {/* Card Tab 2 (Middle layer) */}
@@ -64,7 +64,7 @@ export default function CardsWidget({
             className="absolute top-3 inset-x-2 h-12 rounded-2xl bg-[#24201e] border border-[#38332f] opacity-80 cursor-pointer hover:opacity-100 transition-all flex items-center justify-between px-4 text-xs font-semibold text-[#a89d95]"
           >
             <span>Mastercard</span>
-            <span>$3,140.00</span>
+            <span>₹3,140.00</span>
           </div>
 
           {/* Active Foreground Card (Glossy metallic dark carbon) */}

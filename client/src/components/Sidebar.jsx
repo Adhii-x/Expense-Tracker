@@ -21,8 +21,7 @@ export default function Sidebar({
   darkMode, 
   setDarkMode, 
   isCollapsed, 
-  setIsCollapsed,
-  currency 
+  setIsCollapsed
 }) {
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutGrid },
@@ -33,8 +32,6 @@ export default function Sidebar({
     { id: 'settings', label: 'Settings', icon: Sliders },
     { id: 'ai', label: 'AI Copilot', icon: Bot, isAi: true, badge: 'AI' }
   ];
-
-  const currencyUnit = currency === 'INR' ? 'rupee' : 'dollar';
 
   return (
     <aside 
@@ -127,7 +124,7 @@ export default function Sidebar({
             </div>
 
             <h4 className="text-xs font-extrabold text-white leading-snug">
-              Make every {currencyUnit} count.
+              Make every rupee count.
             </h4>
             <p className="text-[11px] text-[#8c827a] leading-relaxed mt-1">
               Small steps today. Big wins tomorrow.

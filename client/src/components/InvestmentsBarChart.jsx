@@ -47,7 +47,7 @@ export default function InvestmentsBarChart({ currency }) {
         {/* Big Amount + Percentage */}
         <div className="flex items-baseline gap-3 mb-6">
           <h3 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-            $3,200.00
+            ₹3,200.00
           </h3>
           <span className="px-2 py-0.5 rounded-full bg-[#163824] border border-[#22c55e]/30 text-[#22c55e] text-xs font-bold flex items-center gap-1">
             <TrendingUp className="w-3 h-3" />

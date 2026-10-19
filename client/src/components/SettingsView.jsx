@@ -3,17 +3,14 @@ import {
   Sliders, 
   RotateCcw, 
   Download, 
-  DollarSign, 
+  Wallet,
   ShieldCheck, 
   Database, 
   Sparkles,
   Info
 } from 'lucide-react';
-import { CURRENCIES } from '../constants';
 
 export default function SettingsView({
-  currency,
-  setCurrency,
   onResetDemo,
   onExportCsv,
   totalTransactions,
@@ -31,7 +28,7 @@ export default function SettingsView({
           Settings & Configurations
         </h2>
         <p className="text-xs sm:text-sm text-[#8c827a] mt-1">
-          Customize currency symbols, manage database records, and export reports.
+          Manage project records and export your INR transaction reports.
         </p>
       </div>
 
@@ -39,38 +36,24 @@ export default function SettingsView({
       <div className="p-6 rounded-3xl bg-[#181615] border border-[#262220] shadow-xl space-y-4">
         <div className="flex items-center gap-3">
           <div className="p-2.5 rounded-2xl bg-[#ff6b00]/15 text-[#ff6b00]">
-            <DollarSign className="w-5 h-5" />
+            <Wallet className="w-5 h-5" />
           </div>
           <div>
             <h3 className="font-extrabold text-white text-base">
-              Display Currency
+              Transaction Currency
             </h3>
             <p className="text-xs text-[#8c827a]">
-              Formats all metrics, charts, and transaction receipts
+              All transactions, budgets, charts, and exports use Indian Rupees.
             </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-          {CURRENCIES.map((c) => (
-            <div
-              key={c.code}
-              onClick={() => setCurrency(c.code)}
-              className={`p-3.5 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between ${
-                currency === c.code
-                  ? 'bg-[#2a1708] border-[#ff6b00] shadow-md shadow-[#ff6b00]/20'
-                  : 'bg-[#1c1918] hover:bg-[#221f1d] border-[#2b2725]'
-              }`}
-            >
-              <span className="text-lg font-bold font-mono text-white">
-                {c.symbol}
-              </span>
-              <div className="mt-2">
-                <div className="text-xs font-bold text-white">{c.code}</div>
-                <div className="text-[10px] text-[#8c827a] line-clamp-1">{c.name}</div>
-              </div>
-            </div>
-          ))}
+        <div className="inline-flex items-center gap-3 p-3.5 rounded-2xl bg-[#2a1708] border border-[#ff6b00] shadow-md shadow-[#ff6b00]/20">
+          <span className="text-lg font-bold font-mono text-white">₹</span>
+          <div>
+            <div className="text-xs font-bold text-white">INR</div>
+            <div className="text-[10px] text-[#8c827a]">Indian Rupee</div>
+          </div>
         </div>
       </div>
 

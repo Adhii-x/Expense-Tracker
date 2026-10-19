@@ -1,6 +1,6 @@
 import React from 'react';
 import { 
-  DollarSign, 
+  Wallet,
   TrendingUp, 
   TrendingDown, 
   Percent, 
@@ -40,7 +40,7 @@ export default function SummaryCards({
               ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400' 
               : 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400'
           }`}>
-            <DollarSign className="w-5 h-5" />
+            <Wallet className="w-5 h-5" />
           </div>
         </div>
 

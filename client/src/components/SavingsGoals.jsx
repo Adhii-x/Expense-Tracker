@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Target, Plus, DollarSign, Calendar, Sparkles, Check, Trash2, ArrowUpRight } from 'lucide-react';
+import { Target, Plus, Calendar, Sparkles, Check, Trash2, ArrowUpRight } from 'lucide-react';
 import { formatCurrency, formatDate } from '../utils';
 
 export default function SavingsGoals({ 
@@ -229,7 +229,7 @@ export default function SavingsGoals({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[11px] font-bold text-[#8c827a] uppercase mb-1">
-                    Target Amount ($) *
+                    Target Amount (₹) *
                   </label>
                   <input
                     type="number"

@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { X, ArrowUpRight, ArrowDownLeft, AlertCircle } from 'lucide-react';
-import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, CURRENCIES } from '../constants';
+import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../constants';
 
 export default function QuickTransferModal({ 
   isOpen, 
   onClose, 
   defaultType = 'expense', 
-  onAddTransaction, 
-  currency 
+  onAddTransaction
 }) {
   if (!isOpen) return null;
 
@@ -28,7 +27,6 @@ export default function QuickTransferModal({
     setCategory(type === 'expense' ? EXPENSE_CATEGORIES[0] : INCOME_CATEGORIES[0]);
   }, [type]);
 
-  const curr = CURRENCIES.find(c => c.code === currency) || CURRENCIES[0];
   const availableCategories = type === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
 
   const validate = () => {
@@ -155,7 +153,7 @@ export default function QuickTransferModal({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-[11px] font-bold uppercase tracking-wider text-[#8c827a] mb-1.5">
-                Amount ({curr.symbol}) *
+                Amount (₹) *
               </label>
               <input
                 type="number"

@@ -1,18 +1,15 @@
-import { CURRENCIES } from './constants';
-
-export function formatCurrency(amount, currencyCode = 'USD') {
+export function formatCurrency(amount) {
   const numeric = Number(amount) || 0;
-  const curr = CURRENCIES.find(c => c.code === currencyCode) || CURRENCIES[0];
 
   try {
-    return new Intl.NumberFormat(currencyCode === 'INR' ? 'en-IN' : 'en-US', {
+    return new Intl.NumberFormat('en-IN', {
       style: 'currency',
-      currency: curr.code,
+      currency: 'INR',
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
     }).format(numeric);
   } catch (e) {
-    return `${curr.symbol}${numeric.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return `₹${numeric.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   }
 }
 
@@ -49,13 +46,13 @@ export function formatMonthYear(monthStr) {
   }
 }
 
-export function downloadCsv(transactions, currencyCode = 'USD') {
+export function downloadCsv(transactions) {
   if (!transactions || transactions.length === 0) {
     alert('No transactions available to export.');
     return;
   }
 
-  const headers = ['ID', 'Date', 'Title', 'Type', 'Category', `Amount (${currencyCode})`, 'Notes'];
+  const headers = ['ID', 'Date', 'Title', 'Type', 'Category', 'Amount (INR)', 'Notes'];
   const rows = transactions.map(t => [
     t.id,
     t.date,

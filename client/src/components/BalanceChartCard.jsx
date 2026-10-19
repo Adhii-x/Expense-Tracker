@@ -96,7 +96,7 @@ export default function BalanceChartCard({ totalBalance, currency }) {
         displayColors: false,
         callbacks: {
           title: (items) => `${items[0].label}, 2026 ↗`,
-          label: (item) => `${formatCurrency(item.raw, currency)} USD`
+          label: (item) => formatCurrency(item.raw)
         }
       }
     },
@@ -120,7 +120,7 @@ export default function BalanceChartCard({ totalBalance, currency }) {
         ticks: {
           color: '#736a63',
           font: { size: 11 },
-          callback: (val) => `$${val / 1000}k`
+          callback: (val) => `₹${val / 1000}k`
         }
       }
     }
@@ -167,7 +167,7 @@ export default function BalanceChartCard({ totalBalance, currency }) {
       {/* Floating Highlight Callout Box (matching reference image) */}
       <div className="hidden sm:flex absolute right-44 top-28 z-10 px-3.5 py-2 rounded-xl bg-white text-slate-900 shadow-2xl flex-col items-start border border-slate-200 animate-pulse">
         <span className="text-[10px] font-semibold text-slate-500">09 Dec, 2026 ↗</span>
-        <span className="text-xs font-extrabold text-slate-900">$9,780.90 USD</span>
+        <span className="text-xs font-extrabold text-slate-900">₹9,780.90 INR</span>
       </div>
 
       {/* Area Chart Canvas */}
@@ -181,7 +181,7 @@ export default function BalanceChartCard({ totalBalance, currency }) {
         {/* Timeline Month Tracker */}
         <div className="flex items-center gap-3">
           <span className="text-[#8c827a]">Average annual rate:</span>
-          <span className="font-bold text-white tracking-wide">$84,000</span>
+          <span className="font-bold text-white tracking-wide">₹84,000</span>
         </div>
 
         {/* Legend */}

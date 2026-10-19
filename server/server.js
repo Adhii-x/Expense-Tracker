@@ -25,8 +25,8 @@ if (!fs.existsSync(DATA_DIR)) {
 // Initial seed data
 const initialData = {
   budget: {
-    monthlyLimit: 1500,
-    currency: 'USD'
+    monthlyLimit: 25000,
+    currency: 'INR'
   },
   cards: [
     {
@@ -469,12 +469,12 @@ app.get('/api/budget', (req, res) => {
   const db = readDb();
   res.json({
     success: true,
-    data: db.budget || { monthlyLimit: 1500, currency: 'USD' }
+    data: { ...(db.budget || { monthlyLimit: 25000 }), currency: 'INR' }
   });
 });
 
 app.post('/api/budget', (req, res) => {
-  const { monthlyLimit, currency } = req.body;
+  const { monthlyLimit } = req.body;
   const limit = parseFloat(monthlyLimit);
 
   if (isNaN(limit) || limit < 0) {
@@ -484,7 +484,7 @@ app.post('/api/budget', (req, res) => {
   const db = readDb();
   db.budget = {
     monthlyLimit: limit,
-    currency: currency || db.budget?.currency || 'USD'
+    currency: 'INR'
   };
   writeDb(db);
 
@@ -546,7 +546,7 @@ app.get('/api/summary', (req, res) => {
 app.get('/api/health-score', (req, res) => {
   const db = readDb();
   const transactions = db.transactions || [];
-  const budget = db.budget || { monthlyLimit: 1500, currency: 'USD' };
+  const budget = db.budget || { monthlyLimit: 25000, currency: 'INR' };
 
   let totalIncome = 0;
   let totalExpenses = 0;
@@ -765,10 +765,10 @@ app.post('/api/ai/chat', (req, res) => {
   let suggestedActions = [];
 
   if (query.includes('save') || query.includes('cut') || query.includes('reduce')) {
-    reply = `💡 **AI Savings Plan for You:**\n\n1. **Largest Spending Drain:** Your biggest expense category is **${topCategory[0]}** ($${topCategory[1].toFixed(2)}). Trimming this by just 15% would save you **$${(topCategory[1] * 0.15).toFixed(2)}** each month.\n2. **Subscription Audit:** Review recurring memberships (streaming, cloud tools). Halving discretionary spending can free up **$50–$100/mo**.\n3. **Automate Transfers:** Set aside 20% ($${(income * 0.20).toFixed(2)}) the moment income lands.`;
-    suggestedActions = ['Set budget limit to $' + Math.max(500, Math.round(expenses * 0.85)), 'Export CSV Report', 'View Category Chart'];
+    reply = `💡 **AI Savings Plan for You:**\n\n1. **Largest Spending Drain:** Your biggest expense category is **${topCategory[0]}** (₹${topCategory[1].toFixed(2)}). Trimming this by just 15% would save you **₹${(topCategory[1] * 0.15).toFixed(2)}** each month.\n2. **Subscription Audit:** Review recurring memberships (streaming, cloud tools). Halving discretionary spending can free up **₹50–₹100/mo**.\n3. **Automate Transfers:** Set aside 20% (₹${(income * 0.20).toFixed(2)}) the moment income lands.`;
+    suggestedActions = ['Set budget limit to ₹' + Math.max(500, Math.round(expenses * 0.85)), 'Export CSV Report', 'View Category Chart'];
   } else if (query.includes('budget') || query.includes('limit') || query.includes('warning')) {
-    reply = `📊 **Budget Status Analysis:**\n\n- **Monthly Limit:** $${budgetLimit.toLocaleString()}\n- **Total Spent:** $${expenses.toFixed(2)} (${pctOfBudget}%)\n- **Status:** ${pctOfBudget >= 100 ? '🚨 Over budget by $' + (expenses - budgetLimit).toFixed(2) : pctOfBudget >= 80 ? '⚠️ Warning: Approaching 80% threshold' : '✅ Healthy (<80% allocated)'}.\n\nAccording to the **50/30/20 rule**, allocate 50% for Needs, 30% for Wants, and 20% for Savings ($${(income * 0.2).toFixed(2)}).`;
+    reply = `📊 **Budget Status Analysis:**\n\n- **Monthly Limit:** ₹${budgetLimit.toLocaleString('en-IN')}\n- **Total Spent:** ₹${expenses.toFixed(2)} (${pctOfBudget}%)\n- **Status:** ${pctOfBudget >= 100 ? '🚨 Over budget by ₹' + (expenses - budgetLimit).toFixed(2) : pctOfBudget >= 80 ? '⚠️ Warning: Approaching 80% threshold' : '✅ Healthy (<80% allocated)'}.\n\nAccording to the **50/30/20 rule**, allocate 50% for Needs, 30% for Wants, and 20% for Savings (₹${(income * 0.2).toFixed(2)}).`;
     suggestedActions = ['Adjust Monthly Budget', 'Check Recent Expenses', 'Simulate Next Month'];
   } else if (query.includes('afford') || query.includes('can i buy') || query.includes('purchase')) {
     const numbers = query.match(/\d+(\.\d+)?/g);
@@ -776,15 +776,15 @@ app.post('/api/ai/chat', (req, res) => {
     const canAfford = balance >= amountToCheck && (expenses + amountToCheck) <= budgetLimit;
 
     reply = canAfford
-      ? `✅ **Affordability Verdict:** Yes, you can comfortably afford **$${amountToCheck.toFixed(2)}**!\n\nYour net balance is **$${balance.toFixed(2)}**, and after this purchase you will still have **$${(balance - amountToCheck).toFixed(2)}** buffer remaining.`
-      : `⚠️ **Caution:** A purchase of **$${amountToCheck.toFixed(2)}** will push your current balance to **$${(balance - amountToCheck).toFixed(2)}** and utilize ${Math.round(((expenses + amountToCheck) / budgetLimit) * 100)}% of your monthly budget limit. Consider deferring non-essentials.`;
+      ? `✅ **Affordability Verdict:** Yes, you can comfortably afford **₹${amountToCheck.toFixed(2)}**!\n\nYour net balance is **₹${balance.toFixed(2)}**, and after this purchase you will still have **₹${(balance - amountToCheck).toFixed(2)}** buffer remaining.`
+      : `⚠️ **Caution:** A purchase of **₹${amountToCheck.toFixed(2)}** will push your current balance to **₹${(balance - amountToCheck).toFixed(2)}** and utilize ${Math.round(((expenses + amountToCheck) / budgetLimit) * 100)}% of your monthly budget limit. Consider deferring non-essentials.`;
     suggestedActions = ['Add as Pending Expense', 'Review Bank Balance'];
   } else if (query.includes('predict') || query.includes('forecast') || query.includes('next month')) {
-    reply = `🔮 **AI Cashflow Projection for Next Month:**\n\n- **Projected Inflow:** ~$${income.toFixed(2)}\n- **Projected Outflow:** ~$${(expenses * 0.96).toFixed(2)} (if current pacing holds)\n- **Forecast Net Balance:** ~$${(balance + 120).toFixed(2)}\n\n*Pro-tip:* If you maintain dining out under $150, you'll hit a record **28% net savings rate**!`;
+    reply = `🔮 **AI Cashflow Projection for Next Month:**\n\n- **Projected Inflow:** ~₹${income.toFixed(2)}\n- **Projected Outflow:** ~₹${(expenses * 0.96).toFixed(2)} (if current pacing holds)\n- **Forecast Net Balance:** ~₹${(balance + 120).toFixed(2)}\n\n*Pro-tip:* If you maintain dining out under ₹150, you'll hit a record **28% net savings rate**!`;
     suggestedActions = ['Lock Target Savings', 'View Bar Chart'];
   } else {
-    reply = `🤖 **FinAI Financial Copilot Report:**\n\n- **Current Balance:** $${balance.toFixed(2)}\n- **Total Income:** +$${income.toFixed(2)}\n- **Total Expenses:** -$${expenses.toFixed(2)}\n- **Dominant Outflow:** ${topCategory[0]} ($${topCategory[1].toFixed(2)})\n- **Financial Health Score:** ${Math.min(100, Math.max(30, Math.round((balance / (income || 1)) * 100 + 40)))} / 100\n\nYou can ask me: *"How can I save $200?"*, *"Can I afford $150?"*, or type natural phrases like *"Spent $40 on fuel today"* to quick-log transactions!`;
-    suggestedActions = ['How to save $200?', 'Can I afford a $150 item?', 'Analyze my biggest expense'];
+    reply = `🤖 **FinAI Financial Copilot Report:**\n\n- **Current Balance:** ₹${balance.toFixed(2)}\n- **Total Income:** +₹${income.toFixed(2)}\n- **Total Expenses:** -₹${expenses.toFixed(2)}\n- **Dominant Outflow:** ${topCategory[0]} (₹${topCategory[1].toFixed(2)})\n- **Financial Health Score:** ${Math.min(100, Math.max(30, Math.round((balance / (income || 1)) * 100 + 40)))} / 100\n\nYou can ask me: *"How can I save ₹200?"*, *"Can I afford ₹150?"*, or type natural phrases like *"Spent ₹40 on fuel today"* to quick-log transactions!`;
+    suggestedActions = ['How to save ₹200?', 'Can I afford a ₹150 item?', 'Analyze my biggest expense'];
   }
 
   res.json({
@@ -805,7 +805,7 @@ app.post('/api/ai/parse-transaction', (req, res) => {
   }
 
   const raw = text.toLowerCase();
-  const amountMatch = text.match(/\$?(\d+(\.\d{1,2})?)/);
+  const amountMatch = text.match(/(?:₹|rs\.?\s*)?(\d+(\.\d{1,2})?)/i);
   const amount = amountMatch ? parseFloat(amountMatch[1]) : 25.00;
 
   const isIncome = raw.includes('received') || raw.includes('earned') || raw.includes('got paid') || raw.includes('salary') || raw.includes('stipend') || raw.includes('grant') || raw.includes('income') || raw.includes('deposit');
@@ -835,8 +835,8 @@ app.post('/api/ai/parse-transaction', (req, res) => {
   }
 
   let cleanTitle = text
-    .replace(/\$?(\d+(\.\d{1,2})?)/g, '')
-    .replace(/(spent|paid|bought|received|earned|for|on|yesterday|today|dollars|usd)/gi, '')
+    .replace(/(?:₹|rs\.?\s*)?(\d+(\.\d{1,2})?)/gi, '')
+    .replace(/(spent|paid|bought|received|earned|for|on|yesterday|today|rupees|rs)/gi, '')
     .trim();
 
   if (!cleanTitle || cleanTitle.length < 2) {
@@ -869,7 +869,7 @@ app.post('/api/ai/scan-receipt', (req, res) => {
       amount: 14.75,
       type: 'expense',
       category: 'Food & Dining',
-      items: ['Caramel Oat Latte ($5.50)', 'Avocado Sourdough Toast ($8.25)', 'Sales Tax ($1.00)'],
+      items: ['Caramel Oat Latte (₹5.50)', 'Avocado Sourdough Toast (₹8.25)', 'Sales Tax (₹1.00)'],
       confidence: 98.4
     },
     'bookstore': {

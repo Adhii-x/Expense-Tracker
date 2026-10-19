@@ -32,7 +32,7 @@ export default function ReceiptScannerModal({
     {
       id: 'campus_cafe',
       title: 'Campus Coffee & Bakery',
-      amount: '$14.75',
+      amount: '₹14.75',
       icon: Coffee,
       badge: 'Food & Dining',
       desc: 'Caramel Oat Latte + Avocado Sourdough'
@@ -40,7 +40,7 @@ export default function ReceiptScannerModal({
     {
       id: 'bookstore',
       title: 'Academic Bookstore',
-      amount: '$124.99',
+      amount: '₹124.99',
       icon: BookOpen,
       badge: 'Education & Books',
       desc: 'Algorithm Textbook + Graph Paper'
@@ -48,7 +48,7 @@ export default function ReceiptScannerModal({
     {
       id: 'tech_store',
       title: 'Apex Tech Electronics',
-      amount: '$68.50',
+      amount: '₹68.50',
       icon: Laptop,
       badge: 'Shopping',
       desc: 'USB-C 100W Hub + Mouse Mat'

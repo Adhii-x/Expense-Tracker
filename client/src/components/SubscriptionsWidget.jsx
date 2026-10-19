@@ -75,7 +75,7 @@ export default function SubscriptionsWidget({
         <Sparkles className="w-5 h-5 text-[#ff6b00] shrink-0 mt-0.5" />
         <div className="text-xs text-[#d4ccc5] leading-relaxed">
           <strong className="text-white">FinAI Optimization Alert: </strong>
-          You are currently allocating <strong>{formatCurrency(totalMonthlyCost, currency)}/mo</strong> to software & fitness recurring subscriptions. Utilizing student discounts on Spotify and GitHub Developer Pack can unlock an estimated <strong>$14.00/mo</strong> in surplus savings.
+          You are currently allocating <strong>{formatCurrency(totalMonthlyCost, currency)}/mo</strong> to software & fitness recurring subscriptions. Utilizing student discounts on Spotify and GitHub Developer Pack can unlock an estimated <strong>₹14.00/mo</strong> in surplus savings.
         </div>
       </div>
 

@@ -6,8 +6,7 @@ import {
   X, 
   Check, 
   Zap, 
-  TrendingUp, 
-  DollarSign, 
+  TrendingUp,
   AlertCircle,
   Lightbulb,
   PlusCircle,
@@ -36,7 +35,7 @@ export default function AiCopilotModal({
     {
       id: 'm-1',
       sender: 'ai',
-      text: `👋 Hello Ethan! I am your **FinAI Financial Agent**.\n\nI have analyzed your **${transactions.length} recorded transactions**. Your financial health score is **${Math.min(100, Math.max(35, Math.round((totalBalance / (totalIncome || 1)) * 100 + 42)))}/100**.\n\nAsk me how to optimize your savings, predict next month's cashflow, or type / speak natural language like *"Spent $45 on groceries today"* to automatically log transactions!`,
+      text: `👋 Hello Ethan! I am your **FinAI Financial Agent**.\n\nI have analyzed your **${transactions.length} recorded transactions**. Your financial health score is **${Math.min(100, Math.max(35, Math.round((totalBalance / (totalIncome || 1)) * 100 + 42)))}/100**.\n\nAsk me how to optimize your savings, predict next month's cashflow, or type / speak natural language like *"Spent ₹45 on groceries today"* to automatically log transactions!`,
       parsedTx: null
     }
   ]);
@@ -52,10 +51,10 @@ export default function AiCopilotModal({
   }, [messages, loading]);
 
   const quickPrompts = [
-    'How can I save $200 this month?',
+    'How can I save ₹200 this month?',
     'What is my highest expense category?',
-    'Can I afford a $150 textbook right now?',
-    'Spent $38.50 on campus groceries'
+    'Can I afford a ₹150 textbook right now?',
+    'Spent ₹38.50 on campus groceries'
   ];
 
   // Speech Recognition (Voice Input)
@@ -143,7 +142,7 @@ export default function AiCopilotModal({
       {
         id: 'm-' + Date.now(),
         sender: 'ai',
-        text: `✅ **Logged to Ledger!** Added **${tx.title}** (${tx.type === 'income' ? '+' : '-'}$${tx.amount.toFixed(2)}) under **${tx.category}**.`
+        text: `✅ **Logged to Ledger!** Added **${tx.title}** (${tx.type === 'income' ? '+' : '-'}₹${tx.amount.toFixed(2)}) under **${tx.category}**.`
       }
     ]);
   };
@@ -228,7 +227,7 @@ export default function AiCopilotModal({
                           ⚡ AI Detected Transaction
                         </span>
                         <div className="text-sm font-bold text-white mt-0.5">
-                          {m.parsedTx.title} • {m.parsedTx.type === 'income' ? '+' : '-'}${m.parsedTx.amount.toFixed(2)}
+                          {m.parsedTx.title} • {m.parsedTx.type === 'income' ? '+' : '-'}₹{m.parsedTx.amount.toFixed(2)}
                         </div>
                         <span className="text-[11px] text-[#a89d95]">
                           Category: {m.parsedTx.category} • Date: {m.parsedTx.date}
@@ -299,7 +298,7 @@ export default function AiCopilotModal({
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder={isListening ? "Listening... Speak now..." : "Ask FinAI or speak: 'Spent $45 on groceries'..."}
+              placeholder={isListening ? "Listening... Speak now..." : "Ask FinAI or speak: 'Spent ₹45 on groceries'..."}
               className={`flex-1 bg-[#201d1b] border rounded-2xl px-4 py-3 text-xs sm:text-sm text-white placeholder-[#736a63] focus:outline-none transition-all ${
                 isListening ? 'border-[#ff6b00] ring-2 ring-[#ff6b00]/30 animate-pulse' : 'border-[#2e2a27] focus:border-[#ff6b00]'
               }`}

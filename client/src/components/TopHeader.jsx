@@ -10,7 +10,6 @@ import {
   X,
   Sparkles
 } from 'lucide-react';
-import { CURRENCIES } from '../constants';
 import { formatMonthYear } from '../utils';
 
 export default function TopHeader({
@@ -20,8 +19,6 @@ export default function TopHeader({
   availableMonths,
   searchTerm,
   setSearchTerm,
-  currency,
-  setCurrency,
   onAddTransactionClick,
   onOpenCommandPalette
 }) {
@@ -63,7 +60,7 @@ export default function TopHeader({
 
   const notifications = [
     { id: 1, title: 'AI Spending Alert', desc: 'Dining out is 38% above usual pace.', time: '10m ago' },
-    { id: 2, title: 'Scholarship Deposited', desc: '+$1,200.00 credited to account.', time: '2h ago' },
+    { id: 2, title: 'Scholarship Deposited', desc: '+₹1,200.00 credited to account.', time: '2h ago' },
     { id: 3, title: 'Budget Limit', desc: 'You have used 68% of monthly limit.', time: '1d ago' },
   ];
 
@@ -158,25 +155,6 @@ export default function TopHeader({
           >
             <ChevronRight className="w-3.5 h-3.5" />
           </button>
-        </div>
-
-        {/* Currency Selector */}
-        <div className="relative">
-          <select
-            value={currency}
-            onChange={(e) => setCurrency(e.target.value)}
-            className="appearance-none bg-[#181615] hover:bg-[#201d1b] text-xs font-semibold text-[#d4ccc5] py-2 pl-2.5 pr-6 rounded-xl border border-[#2b2725] focus:outline-none focus:border-[#ff6b00] cursor-pointer"
-            title="Currency"
-          >
-            {CURRENCIES.map(c => (
-              <option key={c.code} value={c.code} className="bg-[#181615]">
-                {c.symbol} {c.code}
-              </option>
-            ))}
-          </select>
-          <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[#736a63] text-[9px]">
-            ▼
-          </span>
         </div>
 
         {/* Notifications Bell */}

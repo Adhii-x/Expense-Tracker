@@ -3,14 +3,13 @@ import {
   PlusCircle, 
   RotateCcw, 
   Calendar, 
-  Tag, 
-  DollarSign, 
+  Tag,
   FileText,
   AlertCircle 
 } from 'lucide-react';
-import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, CURRENCIES } from '../constants';
+import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../constants';
 
-export default function TransactionForm({ onAddTransaction, currency }) {
+export default function TransactionForm({ onAddTransaction }) {
   const [type, setType] = useState('expense');
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
@@ -30,8 +29,6 @@ export default function TransactionForm({ onAddTransaction, currency }) {
       setCategory(INCOME_CATEGORIES[0]);
     }
   }, [type]);
-
-  const curr = CURRENCIES.find(c => c.code === currency) || CURRENCIES[0];
 
   const validate = () => {
     const newErrors = {};
@@ -192,11 +189,11 @@ export default function TransactionForm({ onAddTransaction, currency }) {
           {/* Amount */}
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
-              Amount ({curr.symbol}) *
+              Amount (₹) *
             </label>
             <div className="relative">
               <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-semibold">
-                {curr.symbol}
+                ₹
               </span>
               <input
                 type="number"
@@ -305,7 +302,7 @@ export default function TransactionForm({ onAddTransaction, currency }) {
           <PlusCircle className="w-4 h-4" />
           {isSubmitting 
             ? 'Saving...' 
-            : `Add ${type === 'expense' ? 'Expense' : 'Income'} (${curr.symbol}${amount ? parseFloat(amount || '0').toFixed(2) : '0.00'})`}
+            : `Add ${type === 'expense' ? 'Expense' : 'Income'} (₹${amount ? parseFloat(amount || '0').toFixed(2) : '0.00'})`}
         </button>
 
       </form>

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, AlertCircle } from 'lucide-react';
-import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, CURRENCIES } from '../constants';
+import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../constants';
 
-export default function EditModal({ transaction, isOpen, onClose, onSave, currency }) {
+export default function EditModal({ transaction, isOpen, onClose, onSave }) {
   if (!isOpen || !transaction) return null;
 
   const [title, setTitle] = useState(transaction.title || '');
@@ -25,7 +25,6 @@ export default function EditModal({ transaction, isOpen, onClose, onSave, curren
     }
   }, [transaction]);
 
-  const curr = CURRENCIES.find(c => c.code === currency) || CURRENCIES[0];
   const availableCategories = type === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
 
   const validate = () => {
@@ -144,7 +143,7 @@ export default function EditModal({ transaction, isOpen, onClose, onSave, curren
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 mb-1">
-                Amount ({curr.symbol}) *
+                Amount (₹) *
               </label>
               <input
                 type="number"

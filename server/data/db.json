@@ -1,7 +1,7 @@
 {
   "budget": {
-    "monthlyLimit": 1500,
-    "currency": "USD"
+    "monthlyLimit": 25000,
+    "currency": "INR"
   },
   "cards": [
     {

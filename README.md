@@ -55,7 +55,7 @@ High-priority AI intelligence module that makes Expense Tracker deeply understan
   - `Settings` (Sliders)
   - `AI Copilot` (Bot / Sparkles)
 - **Active Navigation Pill**: Glowing active pill with colored icon, bold label, and a **subtle white dot indicator on the right edge**.
-- **Sidebar Motivational Card**: *"Make every rupee count. Small steps today. Big wins tomorrow."* (dynamically adapts to currency).
+- **Sidebar Motivational Card**: *"Make every rupee count. Small steps today. Big wins tomorrow."* (all transactions are recorded in INR).
 - **Dark Appearance Toggle**: Interactive Moon icon toggle.
 - **Collapsible Sidebar**: `< Collapse sidebar` toggle between full width (260px) and compact icon dock (80px).
 
