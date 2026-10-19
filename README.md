@@ -92,7 +92,7 @@ High-priority AI intelligence module that makes Expense Tracker deeply understan
 | **Data Visualizations** | Chart.js, React-Chartjs-2 |
 | **AI Copilot** | FinAI Reasoning Model (`server/server.js` + client fallback) |
 | **Backend API** | Node.js, Express.js, CORS |
-| **Database / Storage** | File-based JSON Database (`server/data/db.json`) + Browser `localStorage` |
+| **Database / Storage** | PostgreSQL (`pg`) with automatic import from `server/data/db.json`; JSON fallback + Browser `localStorage` |
 | **Deployment** | Vercel (Frontend) / Node runtime (Full-stack) |
 
 ---
@@ -114,7 +114,7 @@ c:\Project\
 │       ├── main.jsx          # React application root
 │       ├── App.jsx           # Dashboard coordinating state and modals
 │       ├── index.css         # Dark theme styles, animations and scrollbars
-│       ├── constants.js      # Categories, currencies, and demo transactions
+│       ├── constants.js      # Categories and demo transactions
 │       ├── utils.js          # Currency formatters, date formatters, CSV exporter
 │       ├── services/api.js   # Dual-mode API client + AI Agent integration
 │       └── components/
@@ -136,6 +136,8 @@ c:\Project\
 │
 └── server/                   # Backend Express REST API
     ├── server.js             # REST API routes, AI Agent endpoints, static hosting
+    ├── database.js           # PostgreSQL schema, data access, and JSON import
+    ├── .env.example          # PostgreSQL connection configuration template
     └── data/
         └── db.json           # Persistent JSON database (auto-created on start)
 ```
@@ -149,6 +151,17 @@ Open VS Code, select **File > Open Folder...**, and choose `c:\Project`.
 
 ### 2. Start Both Frontend and Backend (1 Command)
 Open the integrated terminal in VS Code (`Ctrl + ~`) and run:
+
+To use PostgreSQL, create a database named `expense_tracker` (for example, with
+`createdb expense_tracker`), copy `server/.env.example` to `server/.env` using
+PowerShell (`Copy-Item server\\.env.example server\\.env`), and set
+`DATABASE_URL` to your local or hosted PostgreSQL connection string. On startup,
+the server creates its tables and imports the existing `server/data/db.json`
+data once if the database is empty. Keep `server/.env` private and never commit
+database credentials.
+
+If `DATABASE_URL` is not set, the backend continues using `server/data/db.json`.
+
 ```bash
 npm run dev
 ```

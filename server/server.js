@@ -3,6 +3,8 @@ import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import 'dotenv/config';
+import { createDataStore } from './database.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -14,13 +16,8 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
-// Database file path
-const DATA_DIR = path.join(__dirname, 'data');
-const DB_FILE = path.join(DATA_DIR, 'db.json');
-
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-}
+// Database file path used for JSON storage and one-time PostgreSQL import.
+const DB_FILE = path.join(__dirname, 'data', 'db.json');
 
 // Initial seed data
 const initialData = {
@@ -165,34 +162,44 @@ const initialData = {
   ]
 };
 
+const dataStore = createDataStore({
+  databaseUrl: process.env.DATABASE_URL,
+  filePath: DB_FILE,
+  initialData
+});
+let currentData = await dataStore.initialize();
+
 function readDb() {
-  try {
-    if (!fs.existsSync(DB_FILE)) {
-      writeDb(initialData);
-      return initialData;
-    }
-    const raw = fs.readFileSync(DB_FILE, 'utf-8');
-    const parsed = JSON.parse(raw);
-    if (!parsed.cards) parsed.cards = initialData.cards;
-    if (!parsed.subscriptions) parsed.subscriptions = initialData.subscriptions;
-    if (!parsed.goals) parsed.goals = initialData.goals;
-    return parsed;
-  } catch (err) {
-    console.error('Error reading database, resetting to initial data:', err);
-    writeDb(initialData);
-    return initialData;
-  }
+  return currentData;
 }
 
-function writeDb(data) {
-  try {
-    fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
-  } catch (err) {
-    console.error('Error writing database:', err);
-  }
+async function writeDb(data) {
+  await dataStore.save(data);
+  currentData = dataStore.read();
 }
 
-readDb();
+const asyncHandler = (handler) => (req, res, next) => {
+  Promise.resolve(handler(req, res, next)).catch(next);
+};
+
+let mutationQueue = Promise.resolve();
+app.use('/api', (req, res, next) => {
+  if (!['POST', 'PUT', 'DELETE'].includes(req.method)) {
+    next();
+    return;
+  }
+
+  const previous = mutationQueue;
+  let release;
+  mutationQueue = new Promise(resolve => {
+    release = resolve;
+  });
+  previous.then(() => {
+    res.once('finish', release);
+    res.once('close', release);
+    next();
+  }, next);
+});
 
 // ======================== API ROUTES ========================
 
@@ -200,6 +207,7 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'online',
     message: 'Expense Tracker REST API is operating smoothly',
+    database: dataStore.mode,
     timestamp: new Date().toISOString()
   });
 });
@@ -242,7 +250,7 @@ app.get('/api/transactions', (req, res) => {
 });
 
 // POST new transaction
-app.post('/api/transactions', (req, res) => {
+app.post('/api/transactions', asyncHandler(async (req, res) => {
   const { title, amount, type, category, date, notes } = req.body;
 
   if (!title || typeof title !== 'string' || title.trim() === '') {
@@ -278,17 +286,17 @@ app.post('/api/transactions', (req, res) => {
   };
 
   db.transactions.unshift(newTransaction);
-  writeDb(db);
+  await writeDb(db);
 
   res.status(201).json({
     success: true,
     message: 'Transaction recorded successfully',
     data: newTransaction
   });
-});
+}));
 
 // PUT update transaction
-app.put('/api/transactions/:id', (req, res) => {
+app.put('/api/transactions/:id', asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { title, amount, type, category, date, notes } = req.body;
 
@@ -330,17 +338,17 @@ app.put('/api/transactions/:id', (req, res) => {
     notes: (notes || '').trim()
   };
 
-  writeDb(db);
+  await writeDb(db);
 
   res.json({
     success: true,
     message: 'Transaction updated successfully',
     data: db.transactions[index]
   });
-});
+}));
 
 // DELETE transaction
-app.delete('/api/transactions/:id', (req, res) => {
+app.delete('/api/transactions/:id', asyncHandler(async (req, res) => {
   const { id } = req.params;
   const db = readDb();
   const index = db.transactions.findIndex(t => t.id === id);
@@ -350,14 +358,14 @@ app.delete('/api/transactions/:id', (req, res) => {
   }
 
   const deleted = db.transactions.splice(index, 1)[0];
-  writeDb(db);
+  await writeDb(db);
 
   res.json({
     success: true,
     message: 'Transaction deleted successfully',
     data: deleted
   });
-});
+}));
 
 // GET & POST cards
 app.get('/api/cards', (req, res) => {
@@ -365,7 +373,7 @@ app.get('/api/cards', (req, res) => {
   res.json({ success: true, data: db.cards || [] });
 });
 
-app.post('/api/cards', (req, res) => {
+app.post('/api/cards', asyncHandler(async (req, res) => {
   const { holder, type, last4, expiry, balance, color } = req.body;
   const db = readDb();
   const newCard = {
@@ -380,9 +388,9 @@ app.post('/api/cards', (req, res) => {
   };
   db.cards = db.cards || [];
   db.cards.push(newCard);
-  writeDb(db);
+  await writeDb(db);
   res.json({ success: true, data: newCard });
-});
+}));
 
 // GET & POST Subscriptions
 app.get('/api/subscriptions', (req, res) => {
@@ -390,7 +398,7 @@ app.get('/api/subscriptions', (req, res) => {
   res.json({ success: true, data: db.subscriptions || [] });
 });
 
-app.post('/api/subscriptions', (req, res) => {
+app.post('/api/subscriptions', asyncHandler(async (req, res) => {
   const { name, amount, billingCycle, nextBilling, category, icon } = req.body;
   if (!name || !amount) {
     return res.status(400).json({ success: false, error: 'Subscription name and amount required.' });
@@ -407,17 +415,17 @@ app.post('/api/subscriptions', (req, res) => {
   };
   db.subscriptions = db.subscriptions || [];
   db.subscriptions.push(newSub);
-  writeDb(db);
+  await writeDb(db);
   res.json({ success: true, data: newSub });
-});
+}));
 
-app.delete('/api/subscriptions/:id', (req, res) => {
+app.delete('/api/subscriptions/:id', asyncHandler(async (req, res) => {
   const { id } = req.params;
   const db = readDb();
   db.subscriptions = (db.subscriptions || []).filter(s => s.id !== id);
-  writeDb(db);
+  await writeDb(db);
   res.json({ success: true });
-});
+}));
 
 // GET & POST Savings Goals
 app.get('/api/goals', (req, res) => {
@@ -425,7 +433,7 @@ app.get('/api/goals', (req, res) => {
   res.json({ success: true, data: db.goals || [] });
 });
 
-app.post('/api/goals', (req, res) => {
+app.post('/api/goals', asyncHandler(async (req, res) => {
   const { title, targetAmount, currentAmount, deadline, category } = req.body;
   if (!title || !targetAmount) {
     return res.status(400).json({ success: false, error: 'Goal title and target amount required.' });
@@ -441,28 +449,28 @@ app.post('/api/goals', (req, res) => {
   };
   db.goals = db.goals || [];
   db.goals.push(newGoal);
-  writeDb(db);
+  await writeDb(db);
   res.json({ success: true, data: newGoal });
-});
+}));
 
-app.put('/api/goals/:id/deposit', (req, res) => {
+app.put('/api/goals/:id/deposit', asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { amount } = req.body;
   const db = readDb();
   const goal = (db.goals || []).find(g => g.id === id);
   if (!goal) return res.status(404).json({ success: false, error: 'Goal not found' });
   goal.currentAmount = parseFloat((goal.currentAmount + parseFloat(amount || 0)).toFixed(2));
-  writeDb(db);
+  await writeDb(db);
   res.json({ success: true, data: goal });
-});
+}));
 
-app.delete('/api/goals/:id', (req, res) => {
+app.delete('/api/goals/:id', asyncHandler(async (req, res) => {
   const { id } = req.params;
   const db = readDb();
   db.goals = (db.goals || []).filter(g => g.id !== id);
-  writeDb(db);
+  await writeDb(db);
   res.json({ success: true });
-});
+}));
 
 // GET & POST budget settings
 app.get('/api/budget', (req, res) => {
@@ -473,7 +481,7 @@ app.get('/api/budget', (req, res) => {
   });
 });
 
-app.post('/api/budget', (req, res) => {
+app.post('/api/budget', asyncHandler(async (req, res) => {
   const { monthlyLimit } = req.body;
   const limit = parseFloat(monthlyLimit);
 
@@ -486,14 +494,14 @@ app.post('/api/budget', (req, res) => {
     monthlyLimit: limit,
     currency: 'INR'
   };
-  writeDb(db);
+  await writeDb(db);
 
   res.json({
     success: true,
     message: 'Budget settings updated',
     data: db.budget
   });
-});
+}));
 
 // GET analytics summary
 app.get('/api/summary', (req, res) => {
@@ -908,14 +916,14 @@ app.post('/api/ai/scan-receipt', (req, res) => {
 });
 
 // Seed demo data
-app.post('/api/seed', (req, res) => {
-  writeDb(initialData);
+app.post('/api/seed', asyncHandler(async (req, res) => {
+  await writeDb(initialData);
   res.json({
     success: true,
     message: 'Sample demo data successfully reloaded',
     data: initialData
   });
-});
+}));
 
 // CSV export
 app.get('/api/export/csv', (req, res) => {
@@ -943,8 +951,18 @@ if (fs.existsSync(clientDist)) {
   });
 }
 
+app.use((error, req, res, next) => {
+  console.error('API request failed:', error);
+  if (res.headersSent) {
+    next(error);
+    return;
+  }
+  res.status(500).json({ success: false, error: 'The request could not be completed.' });
+});
+
 app.listen(PORT, () => {
   console.log(`🚀 Expense Tracker API Server running at http://localhost:${PORT}`);
+  console.log(`   Database: ${dataStore.mode}`);
   console.log(`   Health check: http://localhost:${PORT}/api/health`);
   console.log(`   Transactions: http://localhost:${PORT}/api/transactions`);
   console.log(`   AI Agent: http://localhost:${PORT}/api/ai/chat`);
