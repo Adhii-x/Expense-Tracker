@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Activity, Apple, ArrowLeft, ArrowRight, Check, Eye, EyeOff, KeyRound, Mail, ShieldCheck } from 'lucide-react';
+import { Activity, ArrowLeft, ArrowRight, Check, Eye, EyeOff, KeyRound, Mail, ShieldCheck } from 'lucide-react';
 import { startAuthentication } from '@simplewebauthn/browser';
 import { useAuth } from '../../context/AuthContext';
 import { authApi, startOAuth } from '../../services/authApi';
@@ -7,8 +7,6 @@ import { authApi, startOAuth } from '../../services/authApi';
 const providers = [
   { id: 'google', label: 'Google', icon: 'G' },
   { id: 'github', label: 'GitHub', icon: 'GH' },
-  { id: 'microsoft', label: 'Microsoft', icon: '⊞' },
-  { id: 'apple', label: 'Apple', icon: Apple }
 ];
 
 function passwordStrength(password) {

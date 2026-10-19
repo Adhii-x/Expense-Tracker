@@ -4,7 +4,7 @@ import express from 'express';
 import { rateLimit } from 'express-rate-limit';
 import { z } from 'zod';
 import nodemailer from 'nodemailer';
-import { createRemoteJWKSet, importPKCS8, jwtVerify, SignJWT } from 'jose';
+import { createRemoteJWKSet, jwtVerify } from 'jose';
 import {
   generateAuthenticationOptions, generateRegistrationOptions,
   verifyAuthenticationResponse, verifyRegistrationResponse
@@ -78,15 +78,11 @@ export function createAuthRouter({ pool = null }) {
 
   const oauthConfig = {
     google: { id: process.env.GOOGLE_CLIENT_ID, secret: process.env.GOOGLE_CLIENT_SECRET, callback: process.env.GOOGLE_CALLBACK_URL },
-    github: { id: process.env.GITHUB_CLIENT_ID, secret: process.env.GITHUB_CLIENT_SECRET, callback: process.env.GITHUB_CALLBACK_URL },
-    microsoft: { id: process.env.MICROSOFT_CLIENT_ID, secret: process.env.MICROSOFT_CLIENT_SECRET, callback: process.env.MICROSOFT_CALLBACK_URL },
-    apple: { id: process.env.APPLE_CLIENT_ID, callback: process.env.APPLE_CALLBACK_URL }
+    github: { id: process.env.GITHUB_CLIENT_ID, secret: process.env.GITHUB_CLIENT_SECRET, callback: process.env.GITHUB_CALLBACK_URL }
   };
   const providerAvailable = provider => {
     const config = oauthConfig[provider];
-    if (!config?.id || !config.callback) return false;
-    if (provider === 'apple') return Boolean(process.env.APPLE_TEAM_ID && process.env.APPLE_KEY_ID && process.env.APPLE_PRIVATE_KEY);
-    return Boolean(config.secret);
+    return Boolean(config?.id && config.secret && config.callback);
   };
 
   async function saveToken(userId, purpose, raw, destination, expiresMinutes = 20) {
@@ -297,31 +293,26 @@ export function createAuthRouter({ pool = null }) {
 
     const urls = {
       google: 'https://accounts.google.com/o/oauth2/v2/auth',
-      github: 'https://github.com/login/oauth/authorize',
-      microsoft: `https://login.microsoftonline.com/${encodeURIComponent(process.env.MICROSOFT_TENANT_ID || 'common')}/oauth2/v2.0/authorize`,
-      apple: 'https://appleid.apple.com/auth/authorize'
+      github: 'https://github.com/login/oauth/authorize'
     };
     const url = new URL(urls[provider]);
     url.searchParams.set('client_id', config.id);
     url.searchParams.set('redirect_uri', config.callback);
-    url.searchParams.set('response_type', provider === 'apple' ? 'code id_token' : 'code');
+    url.searchParams.set('response_type', 'code');
     url.searchParams.set('state', state);
     if (provider === 'github') {
       url.searchParams.set('scope', 'read:user user:email');
     } else {
-      url.searchParams.set('scope', provider === 'apple' ? 'name email' : 'openid email profile');
+      url.searchParams.set('scope', 'openid email profile');
       url.searchParams.set('nonce', nonce);
-      if (provider === 'apple') url.searchParams.set('response_mode', 'form_post');
     }
-    if (provider !== 'apple') {
-      url.searchParams.set('code_challenge', challenge);
-      url.searchParams.set('code_challenge_method', 'S256');
-    }
+    url.searchParams.set('code_challenge', challenge);
+    url.searchParams.set('code_challenge_method', 'S256');
     if (provider === 'google') url.searchParams.set('access_type', 'online');
     res.cookie('expense.oauth_state', state, {
       httpOnly: true,
-      secure: provider === 'apple' || process.env.NODE_ENV === 'production',
-      sameSite: provider === 'apple' ? 'none' : 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
       maxAge: 10 * 60_000,
       path: '/api/auth/oauth'
     });
@@ -337,23 +328,13 @@ export function createAuthRouter({ pool = null }) {
       const flow = oauthStates.get(state);
       oauthStates.delete(state);
       if (!flow || flow.provider !== provider || flow.expiresAt <= Date.now() || !safeEqual(cookieState, state)) throw new Error('The sign-in session expired. Please try again.');
-      res.clearCookie('expense.oauth_state', { httpOnly: true, secure: provider === 'apple' || process.env.NODE_ENV === 'production', sameSite: provider === 'apple' ? 'none' : 'lax', path: '/api/auth/oauth' });
+      res.clearCookie('expense.oauth_state', { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/api/auth/oauth' });
       if (params.error || !params.code) throw new Error('The identity provider did not complete sign-in.');
       const config = oauthConfig[provider];
-      let clientSecret = config.secret;
-      if (provider === 'apple') {
-        const key = await importPKCS8(process.env.APPLE_PRIVATE_KEY.replace(/\\n/g, '\n'), 'ES256');
-        clientSecret = await new SignJWT({})
-          .setProtectedHeader({ alg: 'ES256', kid: process.env.APPLE_KEY_ID })
-          .setIssuer(process.env.APPLE_TEAM_ID).setSubject(config.id)
-          .setAudience('https://appleid.apple.com').setIssuedAt().setExpirationTime('5m').sign(key);
-      }
       const tokenUrl = provider === 'google' ? 'https://oauth2.googleapis.com/token'
-        : provider === 'github' ? 'https://github.com/login/oauth/access_token'
-          : provider === 'microsoft' ? `https://login.microsoftonline.com/${encodeURIComponent(process.env.MICROSOFT_TENANT_ID || 'common')}/oauth2/v2.0/token`
-            : 'https://appleid.apple.com/auth/token';
-      const body = new URLSearchParams({ grant_type: 'authorization_code', code: String(params.code), redirect_uri: config.callback, client_id: config.id, client_secret: clientSecret });
-      if (provider !== 'apple') body.set('code_verifier', flow.verifier);
+        : 'https://github.com/login/oauth/access_token';
+      const body = new URLSearchParams({ grant_type: 'authorization_code', code: String(params.code), redirect_uri: config.callback, client_id: config.id, client_secret: config.secret });
+      body.set('code_verifier', flow.verifier);
       const tokenResponse = await fetch(tokenUrl, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded', accept: 'application/json' }, body });
       const tokens = await tokenResponse.json();
       if (!tokenResponse.ok || !tokens.access_token) throw new Error('The identity provider could not verify this sign-in. Check its callback and credentials.');
@@ -370,34 +351,18 @@ export function createAuthRouter({ pool = null }) {
         identity = { subject: String(githubUser.id), email: verified.email, emailVerified: true, name: githubUser.name || githubUser.login };
       } else {
         if (!tokens.id_token) throw new Error('The identity provider did not return an identity token.');
-        const issuer = provider === 'google' ? ['https://accounts.google.com', 'accounts.google.com']
-          : provider === 'apple' ? 'https://appleid.apple.com' : undefined;
-        const jwksUrl = provider === 'google' ? 'https://www.googleapis.com/oauth2/v3/certs'
-          : provider === 'apple' ? 'https://appleid.apple.com/auth/keys'
-            : 'https://login.microsoftonline.com/common/discovery/v2.0/keys';
-        const options = { audience: config.id, algorithms: ['RS256'] };
-        if (issuer) options.issuer = issuer;
+        const issuer = ['https://accounts.google.com', 'accounts.google.com'];
+        const jwksUrl = 'https://www.googleapis.com/oauth2/v3/certs';
+        const options = { audience: config.id, algorithms: ['RS256'], issuer };
         const { payload } = await jwtVerify(tokens.id_token, createRemoteJWKSet(new URL(jwksUrl)), options);
         if (payload.nonce !== flow.nonce || !payload.sub) throw new Error('Identity token validation failed. Please retry sign-in.');
-        if (provider === 'microsoft') {
-          const tenant = String(payload.tid || '');
-          if (!/^[0-9a-f-]{36}$/i.test(tenant) || payload.iss !== `https://login.microsoftonline.com/${tenant}/v2.0`) throw new Error('Microsoft tenant validation failed.');
-        }
         if (provider === 'google' && payload.email_verified !== true) throw new Error('Verify your email with Google before signing in.');
-        if (provider === 'apple' && !payload.email) throw new Error('Apple did not share an email address for this account.');
         identity = {
           subject: String(payload.sub),
-          email: payload.email || (provider === 'microsoft' ? payload.preferred_username : undefined),
+          email: payload.email,
           emailVerified: payload.email_verified === true || payload.email_verified === 'true',
-          name: payload.name || payload.email || payload.preferred_username || `${provider} user`
+          name: payload.name || payload.email || 'Google user'
         };
-      }
-      if (provider === 'apple' && params.user) {
-        try {
-          const appleProfile = JSON.parse(String(params.user));
-          const candidateName = [appleProfile.name?.firstName, appleProfile.name?.lastName].filter(value => typeof value === 'string').join(' ').replace(/[\u0000-\u001f\u007f]/g, '').trim();
-          if (candidateName) identity.name = candidateName.slice(0, 120);
-        } catch { /* Apple may omit this one-time profile field on later sign-ins. */ }
       }
       const user = await createOAuthIdentity(provider, identity.subject, identity);
       if (await startMfaChallenge(req, user)) return res.redirect(`${publicClientUrl}/?mfa_required=totp`);
@@ -410,7 +375,6 @@ export function createAuthRouter({ pool = null }) {
     }
   };
   router.get('/oauth/:provider/callback', oauthCallback);
-  router.post('/oauth/:provider/callback', oauthCallback);
 
   async function sendVerification(user) {
     const token = randomBytes(32).toString('base64url');

@@ -205,7 +205,7 @@ that assigns existing records only through an explicit, user-confirmed import,
 then add `user_id` ownership and authorization to every financial operation.
 Never migrate the existing shared demo ledger into the first account by default.
 
-The authentication implementation includes server-side password login and registration, Google/GitHub/Microsoft/Apple OAuth authorization-code flows with state and PKCE where supported, SMTP email verification/password reset/email OTP, TOTP with encrypted secrets and one-time recovery codes, WebAuthn passkeys, session revocation, security events, account export, and account deletion. OAuth and email buttons are enabled only when their server-side settings exist. OAuth credentials and working email delivery require provider accounts and SMTP credentials; no credentials are committed to this repository. SMS OTP is not implemented.
+The authentication implementation includes server-side password login and registration, Google and GitHub OAuth authorization-code flows with state and PKCE, SMTP email verification/password reset/email OTP, TOTP with encrypted secrets and one-time recovery codes, WebAuthn passkeys, session revocation, security events, account export, and account deletion. OAuth and email buttons are enabled only when their server-side settings exist. OAuth credentials and working email delivery require provider accounts and SMTP credentials; no credentials are committed to this repository. SMS OTP is not implemented.
 
 The authenticated dashboard currently keeps financial records in browser storage scoped to the signed-in account. It does not yet provide account-owned financial APIs, so the backend rejects production startup until a reviewed user_id migration and per-account authorization are complete. Do not deploy this project as a production finance service yet.
 
@@ -226,7 +226,7 @@ password hashes and HTTP-only sessions. If `DATABASE_URL` is set, accounts and
 sessions use PostgreSQL; without it, development uses temporary in-memory
 accounts and sessions that are lost when the server restarts. OAuth buttons are enabled only when the corresponding credentials are configured on the server.
 
-#### Google, GitHub, Microsoft, and Apple OAuth credentials
+#### Google and GitHub OAuth credentials
 
 The backend template at `server/.env.example` now contains the credential names
 and local callback URLs. Copy it to `server/.env`, then fill values issued by
@@ -254,16 +254,11 @@ the OAuth client ([Google web-server OAuth guide](https://developers.google.com/
 | --- | --- | --- |
 | Google | [Google Cloud OAuth web application](https://developers.google.com/identity/protocols/oauth2/web-server) | `http://localhost:5000/api/auth/oauth/google/callback` |
 | GitHub | [GitHub OAuth App](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/creating-an-oauth-app) | `http://localhost:5000/api/auth/oauth/github/callback` |
-| Microsoft | [Microsoft Entra app registration](https://learn.microsoft.com/en-us/entra/identity-platform/how-to-add-redirect-uri) | `http://localhost:5000/api/auth/oauth/microsoft/callback` |
-| Apple | [Sign in with Apple web Services ID](https://developer.apple.com/help/account/capabilities/configure-sign-in-with-apple-for-the-web/) | `http://localhost:5000/api/auth/oauth/apple/callback` |
-
-Put client IDs and client secrets only in the matching server variables. For Microsoft, set `MICROSOFT_TENANT_ID` to `common` or your app's tenant. For Apple, `APPLE_CLIENT_ID` is the web Services ID; also set Team ID, Key ID, and the private signing key. Register exact HTTPS callback URLs for deployment. OAuth flows validate the provider response before creating an HTTP-only session.
-
-Apple requires a public HTTPS callback domain and does not accept localhost for web sign-in; use a deployed staging domain or HTTPS tunnel when configuring Apple.
+Put client IDs and client secrets only in the matching server variables. Register exact HTTPS callback URLs for deployment. OAuth flows validate the provider response before creating an HTTP-only session.
 
 Copy `server/.env.example` to `server/.env`. Set SMTP host, port, username, password, and sender to enable email verification, password recovery, and email-code sign-in. Set `DATABASE_URL` to PostgreSQL for persisted accounts, tokens, TOTP methods, and sessions. Generate `SESSION_SECRET` with `node -e "console.log(require('node:crypto').randomBytes(48).toString('base64url'))"`. Generate `MFA_ENCRYPTION_KEY` and `RECOVERY_CODE_PEPPER` independently with `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`. Keep all secrets out of Git and Vite variables.
 
-TOTP enrollment encrypts seeds with AES-256-GCM and stores recovery-code hashes. Passkeys use verified WebAuthn challenges, origin/RP checks, and signature counters. Use `WEBAUTHN_RP_ID=localhost` and `WEBAUTHN_ORIGIN=http://localhost:5173` for local development; production requires HTTPS and the exact site origin. Google, Apple, and Microsoft OAuth implementations follow their server-side authorization code/OIDC guidance ([Google](https://developers.google.com/identity/protocols/oauth2/web-server), [Microsoft](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow), [Apple](https://developer.apple.com/documentation/signinwithapplerestapi)); GitHub uses its OAuth authorization flow and verified email API ([GitHub](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps)). Passkeys use [SimpleWebAuthn](https://simplewebauthn.dev/docs/packages/server).
+TOTP enrollment encrypts seeds with AES-256-GCM and stores recovery-code hashes. Passkeys use verified WebAuthn challenges, origin/RP checks, and signature counters. Use `WEBAUTHN_RP_ID=localhost` and `WEBAUTHN_ORIGIN=http://localhost:5173` for local development; production requires HTTPS and the exact site origin. Google OAuth follows its server-side authorization code/OIDC guidance ([Google](https://developers.google.com/identity/protocols/oauth2/web-server)); GitHub uses its OAuth authorization flow and verified email API ([GitHub](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps)). Passkeys use [SimpleWebAuthn](https://simplewebauthn.dev/docs/packages/server).
 
 1. Push your repository to **GitHub**:
    ```bash
