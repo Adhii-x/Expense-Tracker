@@ -92,7 +92,7 @@ High-priority AI intelligence module that makes Expense Tracker deeply understan
 | **Data Visualizations** | Chart.js, React-Chartjs-2 |
 | **AI Copilot** | FinAI Reasoning Model (`server/server.js` + client fallback) |
 | **Backend API** | Node.js, Express.js, CORS |
-| **Database / Storage** | PostgreSQL (`pg`) with automatic import from `server/data/db.json`; JSON fallback + Browser `localStorage` |
+| **Database / Storage** | Per-account server storage in PostgreSQL, with a server-side JSON fallback for local development |
 | **Deployment** | Vercel (Frontend) / Node runtime (Full-stack) |
 
 ---
@@ -176,43 +176,31 @@ Open your browser at **`http://localhost:5173`**.
 
 ## 🌐 Deploying to Vercel (For Final Submission)
 
-> **Security status:** The demo financial data remains shared. In authenticated
-> mode, the server blocks financial APIs until per-user storage is implemented.
-> Production startup now fails closed in `server/config/env.js`. Do not bypass
-> that guard or expose the demo API publicly. The authentication schema in
-> `server/db/schema.sql` is a foundation. Local email/password registration,
-> login, logout, and session lookup are implemented. Provider OAuth flows are
-> implemented but remain unavailable until credentials are configured in
-> `server/.env`. Email verification/reset delivery also requires SMTP settings.
+> Authenticated financial data is stored per account on the server. Production
+> mode requires PostgreSQL, authenticated mode, and a persistent session secret.
+> Local development can use server-side JSON files; do not use that fallback
+> with ephemeral server filesystems.
 
 The Vercel frontend-only demo can still be deployed for a presentation, but it
-must not be described as a multi-user or production financial service. The
-backend must remain private until the per-user data migration and authorization
-work is complete. Existing `server/data/db.json` records remain demo data and
-must not be assigned automatically to a new account.
+does not provide server persistence by itself. Existing `server/data/db.json`
+records remain demo data and are never assigned to a new account.
 
 ### Authentication database foundation
 
-Back up PostgreSQL before applying any schema. To apply the additive auth schema
-manually, run `psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f server/db/schema.sql`.
-The schema creates identity, session, token, MFA, passkey, and audit tables; it
-does not change or migrate the legacy financial tables. Rollback requires a
-separate backup because dropping auth tables would permanently remove accounts
-and security history.
-
-Before production authentication can be enabled, implement and test a migration
-that assigns existing records only through an explicit, user-confirmed import,
-then add `user_id` ownership and authorization to every financial operation.
-Never migrate the existing shared demo ledger into the first account by default.
+Back up PostgreSQL before applying schema changes. The server creates the
+per-account financial data table at startup. Existing records saved in a
+browser's account-scoped storage are imported into that same signed-in account
+only when its server-side account store is empty. The shared demo ledger is
+never imported into a user account.
 
 The authentication implementation includes server-side password login and registration, Google and GitHub OAuth authorization-code flows with state and PKCE, SMTP email verification/password reset/email OTP, TOTP with encrypted secrets and one-time recovery codes, WebAuthn passkeys, session revocation, security events, account export, and account deletion. OAuth and email buttons are enabled only when their server-side settings exist. OAuth credentials and working email delivery require provider accounts and SMTP credentials; no credentials are committed to this repository. SMS OTP is not implemented.
 
-The authenticated dashboard currently keeps financial records in browser storage scoped to the signed-in account. It does not yet provide account-owned financial APIs, so the backend rejects production startup until a reviewed user_id migration and per-account authorization are complete. Do not deploy this project as a production finance service yet.
-
 The backend defaults to `AUTH_MODE=authenticated`. Set `AUTH_MODE=demo` only
-for local sample-data development. The backend rejects `NODE_ENV=production`
-until isolated financial storage and the remaining production controls are
-implemented.
+for local sample-data development. Production requires `AUTH_MODE=authenticated`,
+`DATABASE_URL`, and a strong persistent `SESSION_SECRET` in `server/.env`.
+Without `DATABASE_URL`, development stores account data in server-side files
+under `server/data/users/`; account identities and sessions are temporary and
+will be lost on restart.
 
 ### Authentication UI mode
 

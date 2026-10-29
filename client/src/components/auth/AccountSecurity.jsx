@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Activity, AlertTriangle, Check, Copy, Download, Fingerprint, Laptop, LogOut, RefreshCw, Shield, ShieldCheck, Smartphone, Trash2 } from 'lucide-react';
 import { startRegistration } from '@simplewebauthn/browser';
 import { authApi } from '../../services/authApi';
-import { clearLocalAccountData, getLocalBudget, getLocalCards, getLocalGoals, getLocalSubscriptions, getLocalTransactions } from '../../services/api';
+import { apiRequest, clearLocalAccountData, initializeAccountDataApi, testBackendConnection } from '../../services/api';
 
 function Panel({ icon: Icon, title, description, children }) {
   return <section className="rounded-2xl border border-[#302923] bg-[#171513] p-5 sm:p-6">
@@ -72,20 +72,22 @@ export default function AccountSecurity({ user, onLogout }) {
   };
 
   const exportData = async () => {
-    const result = await act(() => authApi.exportData(), 'Your account export is ready.');
-    if (result) {
-      const exportData = {
-        ...result,
+    const result = await act(async () => {
+      await initializeAccountDataApi(await testBackendConnection());
+      const [accountExport, financialAccount] = await Promise.all([
+        authApi.exportData(),
+        apiRequest('/account/data')
+      ]);
+      return {
+        ...accountExport,
         financialData: {
-          transactions: getLocalTransactions(),
-          budget: getLocalBudget(),
-          cards: getLocalCards(),
-          subscriptions: getLocalSubscriptions(),
-          goals: getLocalGoals(),
-          storage: 'This browser, scoped to the signed-in account'
+          ...financialAccount.data,
+          storage: 'Server account storage'
         }
       };
-      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    }, 'Your account export is ready.');
+    if (result) {
+      const blob = new Blob([JSON.stringify(result, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a'); link.href = url; link.download = 'expense-tracker-account-export.json'; link.click(); URL.revokeObjectURL(url);
     }

@@ -63,7 +63,7 @@ export default function SubscriptionsWidget({
 
         <button
           onClick={() => setShowAdd(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-lg shadow-blue-600/25 self-start sm:self-auto transition-all cursor-pointer"
+          className="button-primary flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold shadow-lg self-start sm:self-auto transition-all cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           <span>Add Subscription</span>
@@ -198,7 +198,7 @@ export default function SubscriptionsWidget({
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-xs font-bold text-white shadow-lg shadow-blue-600/25"
+                  className="button-primary flex-1 py-2.5 rounded-2xl text-xs font-bold shadow-lg"
                 >
                   Save Subscription
                 </button>

@@ -50,7 +50,7 @@ const safeEqual = (left, right) => {
 };
 const oauthStates = new Map();
 
-export function createAuthRouter({ pool = null }) {
+export function createAuthRouter({ pool = null, deleteFinancialData = async () => {} }) {
   const router = express.Router();
   const usersByEmail = new Map();
   const usersById = new Map();
@@ -801,6 +801,7 @@ export function createAuthRouter({ pool = null }) {
         for (const [id, token] of memoryTokens) if (token.userId === userId) memoryTokens.delete(id);
         for (const [identityKey, mappedUserId] of oauthUsers) if (mappedUserId === userId) oauthUsers.delete(identityKey);
       }
+      await deleteFinancialData(userId);
       req.session.destroy(error => {
         if (error) return next(error);
         res.clearCookie(process.env.SESSION_COOKIE_NAME || 'expense.sid', { path: '/' });

@@ -18,12 +18,12 @@ export default function InvestmentsBarChart({ currency }) {
   const maxAmount = 550;
 
   return (
-    <div className="rounded-3xl bg-gradient-to-b from-[#181615] to-[#121110] p-6 sm:p-7 border border-[#262220] shadow-xl flex flex-col justify-between transition-all">
+    <div className="investments-widget rounded-3xl bg-white p-6 sm:p-7 border border-slate-200 shadow-sm flex flex-col justify-between transition-all">
       
       {/* Top Header: Title, Value, +1.52% & Controls */}
       <div>
         <div className="flex items-center justify-between gap-2 mb-2">
-          <span className="text-xs font-semibold tracking-wider uppercase text-[#8c827a]">
+          <span className="text-xs font-semibold tracking-wider uppercase text-slate-500">
             Investments & Yield
           </span>
 
@@ -31,13 +31,13 @@ export default function InvestmentsBarChart({ currency }) {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setSelectedSort(selectedSort === 'default' ? 'desc' : 'default')}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-[#1f1d1b] hover:bg-[#282523] text-[11px] font-semibold text-[#a89d95] hover:text-white border border-[#2b2725] transition-all"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-50 hover:bg-violet-50 text-[11px] font-semibold text-slate-600 hover:text-violet-800 border border-slate-200 transition-all"
             >
               <ArrowUpDown className="w-3 h-3" />
               <span>Sort</span>
             </button>
 
-            <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-[#1f1d1b] text-[11px] font-semibold text-[#a89d95] border border-[#2b2725] cursor-pointer">
+            <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-50 text-[11px] font-semibold text-slate-600 border border-slate-200 cursor-pointer">
               <span>Month</span>
               <ChevronDown className="w-3 h-3" />
             </div>
@@ -46,10 +46,10 @@ export default function InvestmentsBarChart({ currency }) {
 
         {/* Big Amount + Percentage */}
         <div className="flex items-baseline gap-3 mb-6">
-          <h3 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+          <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
             ₹3,200.00
           </h3>
-          <span className="px-2 py-0.5 rounded-full bg-[#163824] border border-[#22c55e]/30 text-[#22c55e] text-xs font-bold flex items-center gap-1">
+          <span className="px-2 py-0.5 rounded-full bg-violet-50 border border-violet-100 text-violet-700 text-xs font-bold flex items-center gap-1">
             <TrendingUp className="w-3 h-3" />
             <span>↑ 1.52%</span>
           </span>
@@ -70,23 +70,23 @@ export default function InvestmentsBarChart({ currency }) {
                   item.isPeak ? 'scale-105' : ''
                 }`}>
                   {item.isPeak ? (
-                    <span className="px-2 py-0.5 rounded-lg bg-[#22c55e] text-black font-extrabold text-[11px] shadow-lg shadow-[#22c55e]/30">
+                    <span className="px-2 py-0.5 rounded-lg bg-violet-600 text-white font-extrabold text-[11px] shadow-lg shadow-violet-600/20">
                       ${item.amount}
                     </span>
                   ) : (
-                    <span className="text-[10px] font-semibold text-[#736a63] group-hover:text-[#a89d95]">
+                    <span className="text-[10px] font-semibold text-slate-400 group-hover:text-slate-600">
                       ${item.amount}
                     </span>
                   )}
                 </div>
 
                 {/* Vertical Bar */}
-                <div className="w-full max-w-[42px] bg-[#24201e] rounded-xl overflow-hidden flex items-end h-32">
+                <div className="w-full max-w-[42px] bg-violet-50 rounded-xl overflow-hidden flex items-end h-32">
                   <div
                     className={`w-full rounded-xl transition-all duration-700 ${
                       item.isPeak
-                        ? 'bg-gradient-to-t from-[#166534] via-[#22c55e] to-[#4ade80] shadow-lg shadow-[#22c55e]/30'
-                        : 'bg-gradient-to-t from-[#26211e] to-[#403732] group-hover:to-[#544943]'
+                        ? 'bg-gradient-to-t from-[#5a4a9e] via-[#7868bd] to-[#a99be8] shadow-lg shadow-violet-500/20'
+                        : 'bg-gradient-to-t from-[#c8c0e8] to-[#8879c3] group-hover:to-[#6f60b0]'
                     }`}
                     style={{ height: `${heightPct}%` }}
                   />
@@ -94,7 +94,7 @@ export default function InvestmentsBarChart({ currency }) {
 
                 {/* Month Label */}
                 <span className={`mt-2 text-[11px] font-semibold ${
-                  item.isPeak ? 'text-[#22c55e]' : 'text-[#8c827a]'
+                  item.isPeak ? 'text-violet-700' : 'text-slate-500'
                 }`}>
                   {item.month}
                 </span>
@@ -106,9 +106,9 @@ export default function InvestmentsBarChart({ currency }) {
       </div>
 
       {/* Footer Subtext */}
-      <div className="pt-3 border-t border-[#24201e] flex items-center justify-between text-[11px] text-[#8c827a]">
-        <span>Portfolio health: <strong className="text-white">Diversified</strong></span>
-        <span className="text-[#22c55e] font-semibold cursor-pointer hover:underline">Rebalance</span>
+      <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+        <span>Portfolio health: <strong className="text-slate-800">Diversified</strong></span>
+        <span className="text-violet-700 font-semibold cursor-pointer hover:underline">Rebalance</span>
       </div>
 
     </div>

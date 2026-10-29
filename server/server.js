@@ -127,14 +127,25 @@ if (authMode === 'authenticated') {
 
 const authOriginGuard = createAuthOriginGuard(clientOrigins);
 app.use('/api/auth', (req, res, next) => req.path.startsWith('/oauth/') ? next() : authOriginGuard(req, res, next));
-app.use('/api/auth', createAuthRouter({ pool: authPool }));
-app.use('/api', (req, res, next) => {
+app.use('/api/auth', createAuthRouter({
+  pool: authPool,
+  deleteFinancialData: userId => dataStore.deleteUser(userId)
+}));
+app.use('/api', async (req, res, next) => {
   if (authMode !== 'authenticated' || req.path === '/health' || req.path.startsWith('/auth/')) return next();
-  if (!req.session?.userId) return res.status(401).json({ success: false, error: 'Sign in to continue.' });
-  return res.status(503).json({ success: false, error: 'Per-user financial storage is not configured yet.' });
+  return authOriginGuard(req, res, async () => {
+    if (!req.session?.userId) return res.status(401).json({ success: false, error: 'Sign in to continue.' });
+    try {
+      req.financialUserId = req.session.userId;
+      req.financialData = await dataStore.readUser(req.financialUserId);
+      return next();
+    } catch (error) {
+      return next(error);
+    }
+  });
 });
 
-// Database file path used for JSON storage and one-time PostgreSQL import.
+// The base file stores demo data; authenticated JSON files are kept under data/users.
 const DB_FILE = path.join(__dirname, 'data', 'db.json');
 
 // Initial seed data
@@ -287,11 +298,15 @@ const dataStore = createDataStore({
 });
 let currentData = await dataStore.initialize();
 
-function readDb() {
-  return currentData;
+function readDb(req) {
+  return req.financialData || currentData;
 }
 
-async function writeDb(data) {
+async function writeDb(req, data) {
+  if (req.financialUserId) {
+    req.financialData = await dataStore.saveUser(req.financialUserId, data);
+    return;
+  }
   await dataStore.save(data);
   currentData = dataStore.read();
 }
@@ -312,10 +327,17 @@ app.use('/api', (req, res, next) => {
   mutationQueue = new Promise(resolve => {
     release = resolve;
   });
-  previous.then(() => {
+  previous.then(async () => {
     res.once('finish', release);
     res.once('close', release);
-    next();
+    try {
+      if (req.financialUserId) {
+        req.financialData = await dataStore.readUser(req.financialUserId);
+      }
+      next();
+    } catch (error) {
+      next(error);
+    }
   }, next);
 });
 
@@ -330,9 +352,77 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+app.get('/api/account/data', asyncHandler(async (req, res) => {
+  if (!req.financialUserId) {
+    return res.status(401).json({ success: false, error: 'Sign in to access account data.' });
+  }
+  res.json({
+    success: true,
+    initialized: await dataStore.hasUserData(req.financialUserId),
+    data: req.financialData
+  });
+}));
+
+app.post('/api/account/data/import', asyncHandler(async (req, res) => {
+  if (!req.financialUserId) {
+    return res.status(401).json({ success: false, error: 'Sign in to import account data.' });
+  }
+  const { data } = req.body || {};
+  const isRecord = value => value && typeof value === 'object' && !Array.isArray(value);
+  const isTransaction = transaction =>
+    isRecord(transaction) &&
+    typeof transaction.id === 'string' &&
+    typeof transaction.title === 'string' &&
+    Number.isFinite(Number(transaction.amount)) &&
+    Number(transaction.amount) > 0 &&
+    ['income', 'expense'].includes(transaction.type) &&
+    typeof transaction.category === 'string' &&
+    typeof transaction.date === 'string' &&
+    !Number.isNaN(Date.parse(transaction.date));
+  if (
+    !isRecord(data) ||
+    !Array.isArray(data.transactions) ||
+    data.transactions.length > 10000 ||
+    !data.transactions.every(isTransaction) ||
+    !Array.isArray(data.cards) ||
+    data.cards.length > 1000 ||
+    !data.cards.every(isRecord) ||
+    !Array.isArray(data.subscriptions) ||
+    data.subscriptions.length > 1000 ||
+    !data.subscriptions.every(isRecord) ||
+    !Array.isArray(data.goals) ||
+    data.goals.length > 1000 ||
+    !data.goals.every(isRecord) ||
+    !isRecord(data.budget) ||
+    !Number.isFinite(Number(data.budget.monthlyLimit)) ||
+    Number(data.budget.monthlyLimit) <= 0 ||
+    !Array.isArray(data.budget.categoryBudgets || []) ||
+    (data.budget.categoryBudgets || []).length > 6 ||
+    !(data.budget.categoryBudgets || []).every(item =>
+      isRecord(item) &&
+      typeof item.category === 'string' &&
+      item.category.trim() &&
+      Number.isFinite(Number(item.limit)) &&
+      Number(item.limit) > 0
+    )
+  ) {
+    return res.status(400).json({ success: false, error: 'The account data format is invalid.' });
+  }
+
+  const saved = await dataStore.importUserData(req.financialUserId, {
+    ...data,
+    budget: { ...data.budget, currency: 'INR' }
+  });
+  if (!saved) {
+    return res.status(409).json({ success: false, error: 'Account data is already saved on the server.' });
+  }
+  req.financialData = saved;
+  res.status(201).json({ success: true, data: saved });
+}));
+
 // GET all transactions
 app.get('/api/transactions', (req, res) => {
-  const db = readDb();
+  const db = readDb(req);
   let list = [...(db.transactions || [])];
 
   const { category, month, type, search } = req.query;
@@ -392,7 +482,7 @@ app.post('/api/transactions', asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, error: 'A valid date (YYYY-MM-DD) is required.' });
   }
 
-  const db = readDb();
+  const db = readDb(req);
   const newTransaction = {
     id: 'tx-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7),
     title: title.trim(),
@@ -404,7 +494,7 @@ app.post('/api/transactions', asyncHandler(async (req, res) => {
   };
 
   db.transactions.unshift(newTransaction);
-  await writeDb(db);
+  await writeDb(req, db);
 
   res.status(201).json({
     success: true,
@@ -418,7 +508,7 @@ app.put('/api/transactions/:id', asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { title, amount, type, category, date, notes } = req.body;
 
-  const db = readDb();
+  const db = readDb(req);
   const index = db.transactions.findIndex(t => t.id === id);
 
   if (index === -1) {
@@ -456,7 +546,7 @@ app.put('/api/transactions/:id', asyncHandler(async (req, res) => {
     notes: (notes || '').trim()
   };
 
-  await writeDb(db);
+  await writeDb(req, db);
 
   res.json({
     success: true,
@@ -468,7 +558,7 @@ app.put('/api/transactions/:id', asyncHandler(async (req, res) => {
 // DELETE transaction
 app.delete('/api/transactions/:id', asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const db = readDb();
+  const db = readDb(req);
   const index = db.transactions.findIndex(t => t.id === id);
 
   if (index === -1) {
@@ -476,7 +566,7 @@ app.delete('/api/transactions/:id', asyncHandler(async (req, res) => {
   }
 
   const deleted = db.transactions.splice(index, 1)[0];
-  await writeDb(db);
+  await writeDb(req, db);
 
   res.json({
     success: true,
@@ -487,13 +577,13 @@ app.delete('/api/transactions/:id', asyncHandler(async (req, res) => {
 
 // GET & POST cards
 app.get('/api/cards', (req, res) => {
-  const db = readDb();
+  const db = readDb(req);
   res.json({ success: true, data: db.cards || [] });
 });
 
 app.post('/api/cards', asyncHandler(async (req, res) => {
   const { holder, type, last4, expiry, balance, color } = req.body;
-  const db = readDb();
+  const db = readDb(req);
   const newCard = {
     id: 'card-' + Date.now(),
     holder: holder || 'Ethan Reynolds',
@@ -506,13 +596,13 @@ app.post('/api/cards', asyncHandler(async (req, res) => {
   };
   db.cards = db.cards || [];
   db.cards.push(newCard);
-  await writeDb(db);
+  await writeDb(req, db);
   res.json({ success: true, data: newCard });
 }));
 
 // GET & POST Subscriptions
 app.get('/api/subscriptions', (req, res) => {
-  const db = readDb();
+  const db = readDb(req);
   res.json({ success: true, data: db.subscriptions || [] });
 });
 
@@ -521,7 +611,7 @@ app.post('/api/subscriptions', asyncHandler(async (req, res) => {
   if (!name || !amount) {
     return res.status(400).json({ success: false, error: 'Subscription name and amount required.' });
   }
-  const db = readDb();
+  const db = readDb(req);
   const newSub = {
     id: 'sub-' + Date.now(),
     name: name.trim(),
@@ -533,21 +623,21 @@ app.post('/api/subscriptions', asyncHandler(async (req, res) => {
   };
   db.subscriptions = db.subscriptions || [];
   db.subscriptions.push(newSub);
-  await writeDb(db);
+  await writeDb(req, db);
   res.json({ success: true, data: newSub });
 }));
 
 app.delete('/api/subscriptions/:id', asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const db = readDb();
+  const db = readDb(req);
   db.subscriptions = (db.subscriptions || []).filter(s => s.id !== id);
-  await writeDb(db);
+  await writeDb(req, db);
   res.json({ success: true });
 }));
 
 // GET & POST Savings Goals
 app.get('/api/goals', (req, res) => {
-  const db = readDb();
+  const db = readDb(req);
   res.json({ success: true, data: db.goals || [] });
 });
 
@@ -556,7 +646,7 @@ app.post('/api/goals', asyncHandler(async (req, res) => {
   if (!title || !targetAmount) {
     return res.status(400).json({ success: false, error: 'Goal title and target amount required.' });
   }
-  const db = readDb();
+  const db = readDb(req);
   const newGoal = {
     id: 'goal-' + Date.now(),
     title: title.trim(),
@@ -567,52 +657,82 @@ app.post('/api/goals', asyncHandler(async (req, res) => {
   };
   db.goals = db.goals || [];
   db.goals.push(newGoal);
-  await writeDb(db);
+  await writeDb(req, db);
   res.json({ success: true, data: newGoal });
 }));
 
 app.put('/api/goals/:id/deposit', asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { amount } = req.body;
-  const db = readDb();
+  const db = readDb(req);
   const goal = (db.goals || []).find(g => g.id === id);
   if (!goal) return res.status(404).json({ success: false, error: 'Goal not found' });
   goal.currentAmount = parseFloat((goal.currentAmount + parseFloat(amount || 0)).toFixed(2));
-  await writeDb(db);
+  await writeDb(req, db);
   res.json({ success: true, data: goal });
 }));
 
 app.delete('/api/goals/:id', asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const db = readDb();
+  const db = readDb(req);
   db.goals = (db.goals || []).filter(g => g.id !== id);
-  await writeDb(db);
+  await writeDb(req, db);
   res.json({ success: true });
 }));
 
 // GET & POST budget settings
 app.get('/api/budget', (req, res) => {
-  const db = readDb();
+  const db = readDb(req);
   res.json({
     success: true,
-    data: { ...(db.budget || { monthlyLimit: 25000 }), currency: 'INR' }
+    data: {
+      ...(db.budget || { monthlyLimit: 25000 }),
+      categoryBudgets: db.budget?.categoryBudgets || [],
+      currency: 'INR'
+    }
   });
 });
 
 app.post('/api/budget', asyncHandler(async (req, res) => {
-  const { monthlyLimit } = req.body;
+  const { monthlyLimit, categoryBudgets } = req.body;
   const limit = parseFloat(monthlyLimit);
 
   if (isNaN(limit) || limit < 0) {
     return res.status(400).json({ success: false, error: 'Monthly budget limit must be a non-negative number.' });
   }
 
-  const db = readDb();
+  const db = readDb(req);
+  const savedCategoryBudgets = categoryBudgets === undefined
+    ? (db.budget?.categoryBudgets || [])
+    : categoryBudgets;
+
+  if (!Array.isArray(savedCategoryBudgets) || savedCategoryBudgets.length > 6) {
+    return res.status(400).json({ success: false, error: 'Category budgets must contain no more than 6 entries.' });
+  }
+
+  const categories = new Set();
+  for (const item of savedCategoryBudgets) {
+    if (!item || typeof item.category !== 'string' || !item.category.trim()) {
+      return res.status(400).json({ success: false, error: 'Each category budget must include a category.' });
+    }
+
+    const category = item.category.trim();
+    const categoryLimit = Number(item.limit);
+    if (categories.has(category) || !Number.isFinite(categoryLimit) || categoryLimit <= 0) {
+      return res.status(400).json({ success: false, error: 'Category budgets must be unique and have a positive limit.' });
+    }
+    categories.add(category);
+  }
+
   db.budget = {
     monthlyLimit: limit,
-    currency: 'INR'
+    currency: 'INR',
+    categoryBudgets: savedCategoryBudgets.map(item => ({
+      category: item.category.trim(),
+      limit: Number(Number(item.limit).toFixed(2))
+    }))
   };
-  await writeDb(db);
+  await writeDb(req, db);
 
   res.json({
     success: true,
@@ -623,7 +743,7 @@ app.post('/api/budget', asyncHandler(async (req, res) => {
 
 // GET analytics summary
 app.get('/api/summary', (req, res) => {
-  const db = readDb();
+  const db = readDb(req);
   const transactions = db.transactions || [];
 
   let totalIncome = 0;
@@ -670,7 +790,7 @@ app.get('/api/summary', (req, res) => {
 // ======================== WELLTHPLAN: AI HEALTH SCORE 2.0 ========================
 
 app.get('/api/health-score', (req, res) => {
-  const db = readDb();
+  const db = readDb(req);
   const transactions = db.transactions || [];
   const budget = db.budget || { monthlyLimit: 25000, currency: 'INR' };
 
@@ -864,7 +984,7 @@ app.get('/api/health-score', (req, res) => {
 
 app.post('/api/ai/chat', (req, res) => {
   const { prompt, context } = req.body;
-  const db = readDb();
+  const db = readDb(req);
   const transactions = db.transactions || [];
   const query = (prompt || '').toLowerCase().trim();
 
@@ -1035,7 +1155,7 @@ app.post('/api/ai/scan-receipt', (req, res) => {
 
 // Seed demo data
 app.post('/api/seed', asyncHandler(async (req, res) => {
-  await writeDb(initialData);
+  await writeDb(req, initialData);
   res.json({
     success: true,
     message: 'Sample demo data successfully reloaded',
@@ -1045,7 +1165,7 @@ app.post('/api/seed', asyncHandler(async (req, res) => {
 
 // CSV export
 app.get('/api/export/csv', (req, res) => {
-  const db = readDb();
+  const db = readDb(req);
   const transactions = db.transactions || [];
 
   let csv = 'ID,Date,Title,Type,Category,Amount,Notes\n';

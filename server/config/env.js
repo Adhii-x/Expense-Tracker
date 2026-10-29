@@ -1,13 +1,15 @@
 export function validateEnvironment(env = process.env) {
-  if (env.NODE_ENV === 'production') {
-    throw new Error(
-      'Production startup is disabled: this build still uses shared financial storage and has no enforced user sessions. Do not expose it to users.'
-    );
-  }
-
   const mode = env.AUTH_MODE || 'authenticated';
   if (!['demo', 'authenticated'].includes(mode)) {
     throw new Error('AUTH_MODE must be either demo or authenticated.');
+  }
+  if (env.NODE_ENV === 'production') {
+    if (mode !== 'authenticated') {
+      throw new Error('Production requires AUTH_MODE=authenticated.');
+    }
+    if (!env.DATABASE_URL || !env.SESSION_SECRET) {
+      throw new Error('Production requires DATABASE_URL and SESSION_SECRET for persistent accounts and sessions.');
+    }
   }
   return { mode };
 }

@@ -5,10 +5,7 @@ import {
   PlusCircle, 
   Camera, 
   Download, 
-  Moon, 
-  Sun, 
   RotateCcw, 
-  LayoutGrid, 
   Calendar, 
   CreditCard, 
   Target,
@@ -25,22 +22,22 @@ export default function CommandPalette({
   onOpenReceiptScanner,
   onExportCsv,
   onResetDemo,
-  darkMode,
-  setDarkMode,
   setActiveTab
 }) {
-  if (!isOpen) return null;
-
   const [query, setQuery] = useState('');
 
   // Handle ESC key
   useEffect(() => {
+    if (!isOpen) return undefined;
+
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
 
   const actions = [
     {
@@ -123,14 +120,6 @@ export default function CommandPalette({
       color: 'text-orange-400',
       action: () => { onClose(); onResetDemo(); }
     },
-    {
-      id: 'toggle-theme',
-      title: darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode',
-      subtitle: 'Toggle dashboard appearance theme',
-      icon: darkMode ? Sun : Moon,
-      color: 'text-yellow-400',
-      action: () => { onClose(); setDarkMode(!darkMode); }
-    }
   ];
 
   const filtered = actions.filter(a => 

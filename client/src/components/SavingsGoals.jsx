@@ -65,7 +65,7 @@ export default function SavingsGoals({
 
         <button
           onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-[#ff6b00] to-[#ea580c] hover:from-[#ff771a] text-white text-xs font-bold shadow-lg shadow-[#ff6b00]/25 self-start sm:self-auto transition-all cursor-pointer"
+          className="button-primary flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold shadow-lg self-start sm:self-auto transition-all cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           <span>New Savings Goal</span>
@@ -133,7 +133,7 @@ export default function SavingsGoals({
               {/* Deposit Action */}
               <button
                 onClick={() => setDepositModalGoal(g)}
-                className="w-full py-2.5 px-3 rounded-2xl bg-[#24201e] hover:bg-[#ff6b00] text-[#d4ccc5] hover:text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 border border-[#332e2b] cursor-pointer"
+                className="button-primary w-full py-2.5 px-3 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <ArrowUpRight className="w-3.5 h-3.5" />
                 <span>Deposit to Goal</span>
@@ -191,7 +191,7 @@ export default function SavingsGoals({
               </button>
               <button
                 onClick={handleDeposit}
-                className="flex-1 py-2.5 rounded-2xl bg-gradient-to-r from-[#ff6b00] to-[#ea580c] text-xs font-bold text-white shadow-lg shadow-[#ff6b00]/25"
+                className="button-primary flex-1 py-2.5 rounded-2xl text-xs font-bold shadow-lg"
               >
                 Confirm Deposit
               </button>
@@ -266,7 +266,7 @@ export default function SavingsGoals({
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 rounded-2xl bg-gradient-to-r from-[#ff6b00] to-[#ea580c] text-xs font-bold text-white shadow-lg shadow-[#ff6b00]/25"
+                  className="button-primary flex-1 py-2.5 rounded-2xl text-xs font-bold shadow-lg"
                 >
                   Create Goal
                 </button>

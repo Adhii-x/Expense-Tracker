@@ -56,18 +56,18 @@ export default function WellthPlanHealthScore({ healthData, onOpenAiAgent }) {
       {
         data: chartPoints,
         fill: true,
-        borderColor: '#ff6b00',
+        borderColor: '#0056ff',
         borderWidth: 2.5,
         backgroundColor: (context) => {
           const ctx = context.chart.ctx;
           const gradient = ctx.createLinearGradient(0, 0, 0, 160);
-          gradient.addColorStop(0, 'rgba(255, 107, 0, 0.35)');
-          gradient.addColorStop(1, 'rgba(255, 107, 0, 0.0)');
+          gradient.addColorStop(0, 'rgba(0, 86, 255, 0.24)');
+          gradient.addColorStop(1, 'rgba(0, 86, 255, 0.0)');
           return gradient;
         },
         tension: 0.4,
         pointBackgroundColor: '#ffffff',
-        pointBorderColor: '#ff6b00',
+        pointBorderColor: '#2277ff',
         pointBorderWidth: 2,
         pointRadius: 4,
         pointHoverRadius: 6
@@ -109,10 +109,10 @@ export default function WellthPlanHealthScore({ healthData, onOpenAiAgent }) {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="wellthplan-view space-y-6 animate-fade-in">
       
       {/* Hero Section: Score Ring + Title + Personal CFO Banner */}
-      <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-[#1c1613] via-[#171413] to-[#0f0e0d] border border-[#ff6b00]/30 shadow-2xl relative overflow-hidden">
+      <div className="wellthplan-hero p-6 sm:p-8 rounded-3xl bg-gradient-to-br from-[#1c1613] via-[#171413] to-[#0f0e0d] border border-[#ff6b00]/30 shadow-2xl relative overflow-hidden">
         
         {/* Glow orb */}
         <div className="absolute -top-16 -right-16 w-64 h-64 bg-[#ff6b00]/15 rounded-full blur-3xl pointer-events-none" />
@@ -203,7 +203,7 @@ export default function WellthPlanHealthScore({ healthData, onOpenAiAgent }) {
             return (
               <div
                 key={idx}
-                className="p-5 rounded-3xl bg-[#181615] hover:bg-[#1d1a19] border border-[#262220] hover:border-[#ff6b00]/30 shadow-xl transition-all flex flex-col justify-between"
+                className="wellthplan-pillar-card p-5 rounded-3xl bg-[#181615] hover:bg-[#1d1a19] border border-[#262220] hover:border-[#ff6b00]/30 shadow-xl transition-all flex flex-col justify-between"
               >
                 <div>
                   <div className="flex items-center justify-between mb-3">
@@ -252,7 +252,7 @@ export default function WellthPlanHealthScore({ healthData, onOpenAiAgent }) {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         {/* Left: Score Change Timeline (30, 90, 180 days) - 7 cols */}
-        <div className="lg:col-span-7 p-6 rounded-3xl bg-[#181615] border border-[#262220] shadow-xl flex flex-col justify-between space-y-4">
+        <div className="wellthplan-detail-card lg:col-span-7 p-6 rounded-3xl bg-[#181615] border border-[#262220] shadow-xl flex flex-col justify-between space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h3 className="font-extrabold text-white text-base">
@@ -293,7 +293,7 @@ export default function WellthPlanHealthScore({ healthData, onOpenAiAgent }) {
         </div>
 
         {/* Right: Why Your Score Changed (Explainable AI) - 5 cols */}
-        <div className="lg:col-span-5 p-6 rounded-3xl bg-[#181615] border border-[#262220] shadow-xl space-y-4">
+        <div className="wellthplan-detail-card lg:col-span-5 p-6 rounded-3xl bg-[#181615] border border-[#262220] shadow-xl space-y-4">
           <div>
             <h3 className="font-extrabold text-white text-base">
               Why Your Score Changed
@@ -307,7 +307,7 @@ export default function WellthPlanHealthScore({ healthData, onOpenAiAgent }) {
             {scoreFactors.map((factor, idx) => (
               <div
                 key={idx}
-                className="p-3.5 rounded-2xl bg-[#1c1918] border border-[#282422] space-y-1"
+                className="wellthplan-factor-card p-3.5 rounded-2xl bg-[#1c1918] border border-[#282422] space-y-1"
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-white">
@@ -332,7 +332,7 @@ export default function WellthPlanHealthScore({ healthData, onOpenAiAgent }) {
       </div>
 
       {/* 4. Personalized AI Improvement Tips (Personal CFO Action Items) */}
-      <div className="p-6 sm:p-7 rounded-3xl bg-[#181615] border border-[#262220] shadow-xl space-y-4">
+      <div className="wellthplan-detail-card p-6 sm:p-7 rounded-3xl bg-[#181615] border border-[#262220] shadow-xl space-y-4">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="font-extrabold text-white text-base">
@@ -356,7 +356,7 @@ export default function WellthPlanHealthScore({ healthData, onOpenAiAgent }) {
           {improvementTips.map((tip) => (
             <div
               key={tip.id}
-              className="p-4 rounded-2xl bg-[#1f1d1b] border border-[#2e2a27] hover:border-[#ff6b00]/30 transition-all flex flex-col justify-between group"
+              className="wellthplan-tip-card p-4 rounded-2xl bg-[#1f1d1b] border border-[#2e2a27] hover:border-[#ff6b00]/30 transition-all flex flex-col justify-between group"
             >
               <div>
                 <div className="flex items-center justify-between mb-2">

@@ -1,8 +1,6 @@
 import React from 'react';
 import { 
   Wallet, 
-  Moon, 
-  Sun, 
   Download, 
   RotateCcw, 
   Server, 
@@ -12,8 +10,6 @@ import {
 
 
 export default function Navbar({
-  darkMode,
-  setDarkMode,
   backendOnline,
   checkBackend,
   onExportCsv,
@@ -93,19 +89,6 @@ export default function Navbar({
             <span className="hidden sm:inline">Demo Data</span>
           </button>
 
-          {/* Dark Mode Toggle */}
-          <button
-            onClick={() => setDarkMode(!darkMode)}
-            title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
-            className="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition-colors"
-            aria-label="Toggle Dark Mode"
-          >
-            {darkMode ? (
-              <Sun className="w-4 h-4 text-amber-400" />
-            ) : (
-              <Moon className="w-4 h-4 text-slate-600" />
-            )}
-          </button>
         </div>
 
       </div>

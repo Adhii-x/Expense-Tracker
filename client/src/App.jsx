@@ -35,16 +35,18 @@ import {
   createSubscriptionApi,
   deleteSubscriptionApi,
   seedDemoDataApi,
-  fetchHealthScoreApi
+  fetchHealthScoreApi,
+  initializeAccountDataApi
 } from './services/api';
-import { downloadCsv } from './utils';
+import { downloadCsv, downloadExcel, downloadPdf } from './utils';
 
 function DemoApp() {
+  const { user, forgotPassword } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [darkMode, setDarkMode] = useState(true);
+  const [isCollapsed, setIsCollapsed] = useState(true);
   const currency = 'INR';
   const [selectedMonth, setSelectedMonth] = useState('2026-10'); // October 2026 matching photo
+  const [selectedTransactionDate, setSelectedTransactionDate] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   // Data state
@@ -64,35 +66,31 @@ function DemoApp() {
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [toast, setToast] = useState(null);
 
-  // Sync dark mode class
-  useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [darkMode]);
-
   // Load all data
   const loadData = useCallback(async () => {
     const isOnline = await testBackendConnection();
     setBackendOnline(isOnline);
 
-    const [txData, budgetData, cardsData, goalsData, subsData] = await Promise.all([
-      fetchTransactionsApi(isOnline),
-      fetchBudgetApi(isOnline),
-      fetchCardsApi(isOnline),
-      fetchGoalsApi(isOnline),
-      fetchSubscriptionsApi(isOnline)
-    ]);
+    try {
+      await initializeAccountDataApi(isOnline);
+      const [txData, budgetData, cardsData, goalsData, subsData] = await Promise.all([
+        fetchTransactionsApi(isOnline),
+        fetchBudgetApi(isOnline),
+        fetchCardsApi(isOnline),
+        fetchGoalsApi(isOnline),
+        fetchSubscriptionsApi(isOnline)
+      ]);
 
-    setTransactions(txData);
-    if (budgetData) {
-      setBudget({ ...budgetData, currency: 'INR' });
+      setTransactions(txData);
+      if (budgetData) {
+        setBudget({ ...budgetData, currency: 'INR' });
+      }
+      if (cardsData) setCards(cardsData);
+      if (goalsData) setGoals(goalsData);
+      if (subsData) setSubscriptions(subsData);
+    } catch (error) {
+      setToast({ message: error.message || 'Could not load your account data from the server.', type: 'warning' });
     }
-    if (cardsData) setCards(cardsData);
-    if (goalsData) setGoals(goalsData);
-    if (subsData) setSubscriptions(subsData);
   }, []);
 
   useEffect(() => {
@@ -101,6 +99,16 @@ function DemoApp() {
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
+  };
+
+  const handlePasswordResetRequest = async () => {
+    if (!user?.email) return;
+    try {
+      await forgotPassword(user.email);
+      showToast(`If an account exists for ${user.email}, a password reset link will be sent.`, 'info');
+    } catch (error) {
+      showToast(error.message || 'Could not request a password reset.', 'warning');
+    }
   };
 
   // Available unique months from transactions
@@ -155,9 +163,20 @@ function DemoApp() {
   // Save budget limit
   const handleSaveBudget = async (newLimit) => {
     const updated = { ...budget, monthlyLimit: newLimit };
-    setBudget(updated);
-    await saveBudgetApi(updated, backendOnline);
-    showToast('Monthly budget threshold updated!');
+    try {
+      const saved = await saveBudgetApi(updated, backendOnline);
+      setBudget({ ...saved, currency: 'INR' });
+      showToast('Monthly budget threshold updated!');
+    } catch (error) {
+      showToast(error.message || 'Could not save your budget.', 'warning');
+    }
+  };
+
+  const handleSaveCategoryBudgets = async (categoryBudgets) => {
+    const updated = { ...budget, categoryBudgets };
+    const saved = await saveBudgetApi(updated, backendOnline);
+    setBudget({ ...saved, currency: 'INR' });
+    showToast('Category budgets saved!');
   };
 
   // Goals operations
@@ -193,9 +212,19 @@ function DemoApp() {
   };
 
   // Export CSV
-  const handleExportCsv = () => {
-    downloadCsv(transactions);
-    showToast(`Exported ${transactions.length} transactions to CSV spreadsheet!`, 'success');
+  const handleExportTransactions = async (format, exportTransactions = transactions) => {
+    try {
+      const exporters = {
+        CSV: downloadCsv,
+        Excel: downloadExcel,
+        PDF: downloadPdf
+      };
+      if (await exporters[format](exportTransactions)) {
+        showToast(`Exported ${exportTransactions.length} transactions as ${format}.`, 'success');
+      }
+    } catch (error) {
+      showToast(error.message || `Could not export transactions as ${format}.`, 'warning');
+    }
   };
 
   // Reset demo data
@@ -273,15 +302,14 @@ function DemoApp() {
     : 'October 2026';
 
   return (
-    <div className="min-h-screen bg-[#0e0d0d] text-[#e6ded8] flex flex-row overflow-x-hidden font-sans antialiased selection:bg-[#ff6b00] selection:text-white">
+    <div className="app-viewport">
+      <div className="app-frame">
       
       {/* 1. Left Vertical Sidebar (Matching reference photo design) */}
       <Sidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         onOpenAiAgent={() => setIsAiOpen(true)}
-        darkMode={darkMode}
-        setDarkMode={setDarkMode}
         isCollapsed={isCollapsed}
         setIsCollapsed={setIsCollapsed}
       />
@@ -302,7 +330,7 @@ function DemoApp() {
         />
 
         {/* Dynamic Page Views Container */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-[1600px] w-full mx-auto">
+        <main className="app-main flex-1 p-4 sm:p-6 lg:p-8 max-w-[1600px] w-full mx-auto">
           
           {/* VIEW: Analytics Page (Matching Photos 1 & 2) */}
           {activeTab === 'analytics' && (
@@ -333,9 +361,13 @@ function DemoApp() {
               onEdit={(tx) => setEditingTransaction(tx)}
               onDelete={handleDeleteTransaction}
               onNewTransaction={() => setQuickModal('expense')}
-              onExportCsv={handleExportCsv}
+              onExportCsv={(exportTransactions) => handleExportTransactions('CSV', exportTransactions)}
+              onExportExcel={(exportTransactions) => handleExportTransactions('Excel', exportTransactions)}
+              onExportPdf={(exportTransactions) => handleExportTransactions('PDF', exportTransactions)}
               currency={currency}
               selectedMonth={selectedMonth}
+              selectedDate={selectedTransactionDate}
+              onClearSelectedDate={() => setSelectedTransactionDate(null)}
             />
           )}
 
@@ -343,7 +375,10 @@ function DemoApp() {
           {activeTab === 'dashboard' && (
             <DashboardView
               totalBalance={totalBalance}
+              totalIncome={totalIncome}
+              totalExpenses={totalExpenses}
               cards={cards}
+              subscriptions={subscriptions}
               transactions={transactions}
               currency={currency}
               budget={budget}
@@ -353,6 +388,11 @@ function DemoApp() {
               onTransferClick={() => setQuickModal('expense')}
               onRequestClick={() => setQuickModal('income')}
               onViewAllClick={() => setActiveTab('transactions')}
+              onSelectCalendarDate={(date) => {
+                setSelectedTransactionDate(date);
+                setSelectedMonth(date.slice(0, 7));
+                setActiveTab('transactions');
+              }}
               onOpenAiAgent={() => setIsAiOpen(true)}
               healthScore={healthData?.score}
               onNavigateWellthPlan={() => setActiveTab('wellthplan')}
@@ -365,6 +405,8 @@ function DemoApp() {
               currentMonthExpenses={currentMonthExpenses}
               budget={budget}
               onSaveBudget={handleSaveBudget}
+              onSaveCategoryBudgets={handleSaveCategoryBudgets}
+              transactions={transactions}
               currency={currency}
               activeMonthLabel={activeMonthLabel}
               goals={goals}
@@ -381,16 +423,22 @@ function DemoApp() {
           {activeTab === 'settings' && (
             <SettingsView
               onResetDemo={handleResetDemo}
-              onExportCsv={handleExportCsv}
+              onExportCsv={() => handleExportTransactions('CSV')}
               totalTransactions={transactions.length}
-              backendOnline={backendOnline}
+              user={user}
+              goalCount={goals.length}
+              subscriptionCount={subscriptions.length}
+              netSavings={totalIncome - totalExpenses}
+              currency={currency}
+              onRequestPasswordReset={handlePasswordResetRequest}
+              onOpenAnalytics={() => setActiveTab('analytics')}
             />
           )}
 
         </main>
 
         {/* Footer */}
-        <footer className="border-t border-[#24201e] py-5 px-6 text-center text-xs text-[#736a63]">
+        <footer className="app-footer border-t border-[#24201e] py-5 px-6 text-center text-xs text-[#736a63]">
           <div className="max-w-[1600px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
             <p>Expense Tracker Pro with AI Copilot • Final Year Computer Science Project</p>
             <p className="flex items-center gap-2">
@@ -401,6 +449,7 @@ function DemoApp() {
           </div>
         </footer>
 
+      </div>
       </div>
 
       {/* 3. Floating Interactive Modals */}
@@ -443,10 +492,8 @@ function DemoApp() {
         onOpenAiAgent={() => setIsAiOpen(true)}
         onOpenQuickModal={(type) => setQuickModal(type)}
         onOpenReceiptScanner={() => setIsReceiptScannerOpen(true)}
-        onExportCsv={handleExportCsv}
+        onExportCsv={() => handleExportTransactions('CSV')}
         onResetDemo={handleResetDemo}
-        darkMode={darkMode}
-        setDarkMode={setDarkMode}
         setActiveTab={setActiveTab}
       />
 

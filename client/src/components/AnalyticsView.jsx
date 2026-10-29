@@ -73,17 +73,17 @@ export default function AnalyticsView({
     : 'October 2026';
 
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="analytics-view space-y-8 animate-fade-in">
       
       {/* Page Header matching photo */}
       <div>
-        <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#ff6b00]">
+        <span className="analytics-eyebrow text-[11px] font-extrabold uppercase tracking-widest text-[#ff6b00]">
           UNDERSTAND YOUR MONEY
         </span>
-        <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight mt-1">
+        <h2 className="analytics-title text-2xl sm:text-3xl font-extrabold tracking-tight mt-1">
           Financial analytics
         </h2>
-        <p className="text-xs sm:text-sm text-[#8c827a] mt-1">
+        <p className="analytics-subtitle text-xs sm:text-sm text-[#8c827a] mt-1">
           Thoughtful, data-driven insights for {monthDisplay}.
         </p>
       </div>
@@ -92,7 +92,7 @@ export default function AnalyticsView({
       {healthData && (
         <div 
           onClick={onNavigateWellthPlan}
-          className="p-5 sm:p-6 rounded-3xl bg-gradient-to-r from-[#1c1918] via-[#1a1614] to-[#26180e] border border-[#ff6b00]/30 hover:border-[#ff6b00]/70 shadow-2xl transition-all cursor-pointer group flex flex-col md:flex-row md:items-center justify-between gap-4"
+          className="analytics-health-banner p-5 sm:p-6 rounded-3xl bg-gradient-to-r from-[#1c1918] via-[#1a1614] to-[#26180e] border border-[#ff6b00]/30 hover:border-[#ff6b00]/70 shadow-2xl transition-all cursor-pointer group flex flex-col md:flex-row md:items-center justify-between gap-4"
         >
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-2xl bg-[#ff6b00]/20 border border-[#ff6b00]/40 flex items-center justify-center text-[#ff6b00] group-hover:scale-110 transition-transform shrink-0 shadow-lg shadow-[#ff6b00]/20">
@@ -138,7 +138,7 @@ export default function AnalyticsView({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
         
         {/* Card 1: Savings rate */}
-        <div className="p-6 rounded-3xl bg-[#181615] hover:bg-[#1d1a19] border border-[#262220] shadow-xl transition-all flex flex-col justify-between group">
+        <div className="analytics-metric-card p-6 rounded-3xl bg-[#181615] hover:bg-[#1d1a19] border border-[#262220] shadow-xl transition-all flex flex-col justify-between group">
           <div>
             <div className="flex items-center justify-between mb-4">
               <div className="w-10 h-10 rounded-2xl bg-[#163824] border border-[#22c55e]/30 flex items-center justify-center text-[#22c55e] shadow-sm">
@@ -161,7 +161,7 @@ export default function AnalyticsView({
         </div>
 
         {/* Card 2: Expense-to-income */}
-        <div className="p-6 rounded-3xl bg-[#181615] hover:bg-[#1d1a19] border border-[#262220] shadow-xl transition-all flex flex-col justify-between group">
+        <div className="analytics-metric-card p-6 rounded-3xl bg-[#181615] hover:bg-[#1d1a19] border border-[#262220] shadow-xl transition-all flex flex-col justify-between group">
           <div>
             <div className="flex items-center justify-between mb-4">
               <div className="w-10 h-10 rounded-2xl bg-[#38161e] border border-rose-500/30 flex items-center justify-center text-rose-400 shadow-sm">
@@ -184,7 +184,7 @@ export default function AnalyticsView({
         </div>
 
         {/* Card 3: Top expense */}
-        <div className="p-6 rounded-3xl bg-[#181615] hover:bg-[#1d1a19] border border-[#262220] shadow-xl transition-all flex flex-col justify-between group">
+        <div className="analytics-metric-card p-6 rounded-3xl bg-[#181615] hover:bg-[#1d1a19] border border-[#262220] shadow-xl transition-all flex flex-col justify-between group">
           <div>
             <div className="flex items-center justify-between mb-4">
               <div className="w-10 h-10 rounded-2xl bg-[#361f12] border border-[#ff6b00]/30 flex items-center justify-center text-[#ff6b00] shadow-sm">
@@ -207,7 +207,7 @@ export default function AnalyticsView({
         </div>
 
         {/* Card 4: Expense change */}
-        <div className="p-6 rounded-3xl bg-[#181615] hover:bg-[#1d1a19] border border-[#262220] shadow-xl transition-all flex flex-col justify-between group">
+        <div className="analytics-metric-card p-6 rounded-3xl bg-[#181615] hover:bg-[#1d1a19] border border-[#262220] shadow-xl transition-all flex flex-col justify-between group">
           <div>
             <div className="flex items-center justify-between mb-4">
               <div className="w-10 h-10 rounded-2xl bg-[#1e1c36] border border-indigo-500/30 flex items-center justify-center text-indigo-400 shadow-sm">
@@ -239,11 +239,11 @@ export default function AnalyticsView({
           currency={currency}
         />
 
-        <div className="rounded-3xl bg-[#181615] border border-[#262220] p-6 shadow-xl">
+        <div className="analytics-chart-card rounded-3xl bg-[#181615] border border-[#262220] p-6 shadow-xl">
           <ExpenseChart
             transactions={monthTransactions}
             currency={currency}
-            darkMode={true}
+            darkMode={false}
           />
         </div>
       </div>

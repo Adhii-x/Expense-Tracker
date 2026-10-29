@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 import pg from 'pg';
 
 const { Pool } = pg;
@@ -14,6 +15,21 @@ function normalizeData(data, initialData) {
     subscriptions: data.subscriptions || initialData.subscriptions,
     goals: data.goals || initialData.goals
   };
+}
+
+function createUserInitialData(initialData) {
+  return {
+    budget: { ...initialData.budget, categoryBudgets: [] },
+    transactions: [],
+    cards: [],
+    subscriptions: [],
+    goals: []
+  };
+}
+
+function userFilePath(filePath, userId) {
+  const userKey = createHash('sha256').update(userId).digest('hex');
+  return path.join(path.dirname(filePath), 'users', `${userKey}.json`);
 }
 
 async function loadLegacyData(filePath, initialData) {
@@ -76,6 +92,7 @@ async function insertData(client, data) {
 }
 
 export function createDataStore({ databaseUrl, filePath, initialData }) {
+  const userInitialData = createUserInitialData(initialData);
   if (!databaseUrl) {
     let currentData;
     return {
@@ -91,6 +108,47 @@ export function createDataStore({ databaseUrl, filePath, initialData }) {
         currentData = normalizeData(data, initialData);
         await fs.mkdir(path.dirname(filePath), { recursive: true });
         await fs.writeFile(filePath, JSON.stringify(currentData, null, 2), 'utf8');
+      },
+      async readUser(userId) {
+        return loadLegacyData(userFilePath(filePath, userId), userInitialData);
+      },
+      async saveUser(userId, data) {
+        const destination = userFilePath(filePath, userId);
+        const normalized = normalizeData(data, userInitialData);
+        await fs.mkdir(path.dirname(destination), { recursive: true, mode: 0o700 });
+        const temporaryPath = `${destination}.${process.pid}.${Date.now()}.tmp`;
+        try {
+          await fs.writeFile(temporaryPath, JSON.stringify(normalized, null, 2), { encoding: 'utf8', mode: 0o600 });
+          await fs.rename(temporaryPath, destination);
+        } catch (error) {
+          await fs.rm(temporaryPath, { force: true });
+          throw error;
+        }
+        return normalized;
+      },
+      async importUserData(userId, data) {
+        const destination = userFilePath(filePath, userId);
+        const normalized = normalizeData(data, userInitialData);
+        await fs.mkdir(path.dirname(destination), { recursive: true, mode: 0o700 });
+        try {
+          await fs.writeFile(destination, JSON.stringify(normalized, null, 2), { encoding: 'utf8', flag: 'wx', mode: 0o600 });
+          return normalized;
+        } catch (error) {
+          if (error.code === 'EEXIST') return null;
+          throw error;
+        }
+      },
+      async hasUserData(userId) {
+        try {
+          await fs.access(userFilePath(filePath, userId));
+          return true;
+        } catch (error) {
+          if (error.code === 'ENOENT') return false;
+          throw error;
+        }
+      },
+      async deleteUser(userId) {
+        await fs.rm(userFilePath(filePath, userId), { force: true });
       },
       async close() {}
     };
@@ -147,6 +205,11 @@ export function createDataStore({ databaseUrl, filePath, initialData }) {
           id SMALLINT PRIMARY KEY CHECK (id = 1),
           data JSONB NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS user_financial_data (
+          user_id UUID PRIMARY KEY REFERENCES auth_users(id) ON DELETE CASCADE,
+          data JSONB NOT NULL,
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        );
       `);
 
       const client = await pool.connect();
@@ -171,6 +234,69 @@ export function createDataStore({ databaseUrl, filePath, initialData }) {
     },
     read() {
       return currentData;
+    },
+    async readUser(userId) {
+      let result = await pool.query(
+        'SELECT data FROM user_financial_data WHERE user_id = $1',
+        [userId]
+      );
+      if (result.rows[0]) return normalizeData(result.rows[0].data, userInitialData);
+
+      const legacyFile = userFilePath(filePath, userId);
+      try {
+        await fs.access(legacyFile);
+      } catch (error) {
+        if (error.code === 'ENOENT') return normalizeData(userInitialData, userInitialData);
+        throw error;
+      }
+
+      const legacyData = await loadLegacyData(legacyFile, userInitialData);
+      result = await pool.query(
+        `INSERT INTO user_financial_data (user_id, data)
+         VALUES ($1, $2::jsonb)
+         ON CONFLICT (user_id) DO NOTHING
+         RETURNING data`,
+        [userId, JSON.stringify(legacyData)]
+      );
+      if (result.rows[0]) return normalizeData(result.rows[0].data, userInitialData);
+
+      result = await pool.query(
+        'SELECT data FROM user_financial_data WHERE user_id = $1',
+        [userId]
+      );
+      return normalizeData(result.rows[0]?.data || userInitialData, userInitialData);
+    },
+    async saveUser(userId, data) {
+      const normalized = normalizeData(data, userInitialData);
+      await pool.query(
+        `INSERT INTO user_financial_data (user_id, data)
+         VALUES ($1, $2::jsonb)
+         ON CONFLICT (user_id)
+         DO UPDATE SET data = EXCLUDED.data, updated_at = now()`,
+        [userId, JSON.stringify(normalized)]
+      );
+      return normalized;
+    },
+    async importUserData(userId, data) {
+      const normalized = normalizeData(data, userInitialData);
+      const result = await pool.query(
+        `INSERT INTO user_financial_data (user_id, data)
+         VALUES ($1, $2::jsonb)
+         ON CONFLICT (user_id) DO NOTHING
+         RETURNING user_id`,
+        [userId, JSON.stringify(normalized)]
+      );
+      return result.rowCount ? normalized : null;
+    },
+    async hasUserData(userId) {
+      const result = await pool.query(
+        'SELECT 1 FROM user_financial_data WHERE user_id = $1',
+        [userId]
+      );
+      return result.rowCount > 0;
+    },
+    async deleteUser(userId) {
+      await pool.query('DELETE FROM user_financial_data WHERE user_id = $1', [userId]);
     },
     save(data) {
       const snapshot = structuredClone(normalizeData(data, initialData));

@@ -1,5 +1,6 @@
 import React from 'react';
 import BudgetTracker from './BudgetTracker';
+import CategoryBudgetSetup from './CategoryBudgetSetup';
 import SavingsGoals from './SavingsGoals';
 import SubscriptionsWidget from './SubscriptionsWidget';
 
@@ -7,6 +8,8 @@ export default function BudgetsView({
   currentMonthExpenses,
   budget,
   onSaveBudget,
+  onSaveCategoryBudgets,
+  transactions,
   currency,
   activeMonthLabel,
   goals,
@@ -40,6 +43,14 @@ export default function BudgetsView({
         onSaveBudget={onSaveBudget}
         currency={currency}
         activeMonth={activeMonthLabel}
+      />
+
+      <CategoryBudgetSetup
+        categoryBudgets={budget.categoryBudgets || []}
+        transactions={transactions}
+        activeMonth={activeMonthLabel}
+        currency={currency}
+        onSave={onSaveCategoryBudgets}
       />
 
       {/* 2. Target Savings Goals */}

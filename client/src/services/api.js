@@ -7,8 +7,7 @@ const STORAGE_KEY_SUBS = 'expensetracker_subscriptions_v1';
 const STORAGE_KEY_GOALS = 'expensetracker_goals_v1';
 let accountScope = '';
 
-// Keep browser fallback data isolated per signed-in account. Demo mode retains
-// the original keys so existing demo data remains available.
+// The account scope is used only to migrate existing account data off browser storage.
 export function setLocalAccountScope(accountId = '') {
   accountScope = accountId ? `account_${accountId}` : '';
 }
@@ -25,6 +24,35 @@ function storageKey(key) {
 }
 
 const API_BASE = '/api';
+
+function requireServerForAccount(isBackendOnline) {
+  if (accountScope && !isBackendOnline) {
+    throw new Error('The server is unavailable. Your account data was not saved.');
+  }
+}
+
+async function fetchFinancialResponse(path, options = {}) {
+  let response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, {
+      credentials: 'include',
+      ...options
+    });
+  } catch (error) {
+    if (accountScope) {
+      throw new Error('Could not reach the server. Your account data was not saved.');
+    }
+    throw error;
+  }
+
+  if (accountScope && !response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    const error = new Error(payload.error || `The request could not be completed (HTTP ${response.status}).`);
+    error.status = response.status;
+    throw error;
+  }
+  return response;
+}
 
 // Shared credential-aware request helper for cookie-authenticated endpoints.
 export async function apiRequest(path, options = {}) {
@@ -119,7 +147,7 @@ export function getLocalTransactions() {
     const stored = localStorage.getItem(key);
     if (!stored) {
       const initial = accountScope ? [] : INITIAL_TRANSACTIONS;
-      localStorage.setItem(key, JSON.stringify(initial));
+      if (!accountScope) localStorage.setItem(key, JSON.stringify(initial));
       return initial;
     }
     return JSON.parse(stored);
@@ -129,6 +157,7 @@ export function getLocalTransactions() {
 }
 
 export function saveLocalTransactions(transactions) {
+  if (accountScope) return;
   try {
     localStorage.setItem(storageKey(STORAGE_KEY_TX), JSON.stringify(transactions));
   } catch (e) {
@@ -141,19 +170,20 @@ export function getLocalBudget() {
     const key = storageKey(STORAGE_KEY_BUDGET);
     const stored = localStorage.getItem(key);
     if (!stored) {
-      const def = { monthlyLimit: 25000, currency: 'INR' };
-      localStorage.setItem(key, JSON.stringify(def));
+      const def = { monthlyLimit: 25000, currency: 'INR', categoryBudgets: [] };
+      if (!accountScope) localStorage.setItem(key, JSON.stringify(def));
       return def;
     }
     const budget = { ...JSON.parse(stored), currency: 'INR' };
-    localStorage.setItem(key, JSON.stringify(budget));
+    if (!accountScope) localStorage.setItem(key, JSON.stringify(budget));
     return budget;
   } catch (e) {
-    return { monthlyLimit: 25000, currency: 'INR' };
+    return { monthlyLimit: 25000, currency: 'INR', categoryBudgets: [] };
   }
 }
 
 export function saveLocalBudget(budget) {
+  if (accountScope) return;
   try {
     localStorage.setItem(storageKey(STORAGE_KEY_BUDGET), JSON.stringify(budget));
   } catch (e) {
@@ -167,7 +197,7 @@ export function getLocalCards() {
     const stored = localStorage.getItem(key);
     if (!stored) {
       const initial = accountScope ? [] : INITIAL_CARDS;
-      localStorage.setItem(key, JSON.stringify(initial));
+      if (!accountScope) localStorage.setItem(key, JSON.stringify(initial));
       return initial;
     }
     return JSON.parse(stored);
@@ -177,6 +207,7 @@ export function getLocalCards() {
 }
 
 export function saveLocalCards(cards) {
+  if (accountScope) return;
   try {
     localStorage.setItem(storageKey(STORAGE_KEY_CARDS), JSON.stringify(cards));
   } catch (e) {
@@ -190,7 +221,7 @@ export function getLocalSubscriptions() {
     const stored = localStorage.getItem(key);
     if (!stored) {
       const initial = accountScope ? [] : INITIAL_SUBSCRIPTIONS;
-      localStorage.setItem(key, JSON.stringify(initial));
+      if (!accountScope) localStorage.setItem(key, JSON.stringify(initial));
       return initial;
     }
     return JSON.parse(stored);
@@ -200,6 +231,7 @@ export function getLocalSubscriptions() {
 }
 
 export function saveLocalSubscriptions(subs) {
+  if (accountScope) return;
   try {
     localStorage.setItem(storageKey(STORAGE_KEY_SUBS), JSON.stringify(subs));
   } catch (e) {}
@@ -211,7 +243,7 @@ export function getLocalGoals() {
     const stored = localStorage.getItem(key);
     if (!stored) {
       const initial = accountScope ? [] : INITIAL_GOALS;
-      localStorage.setItem(key, JSON.stringify(initial));
+      if (!accountScope) localStorage.setItem(key, JSON.stringify(initial));
       return initial;
     }
     return JSON.parse(stored);
@@ -221,31 +253,77 @@ export function getLocalGoals() {
 }
 
 export function saveLocalGoals(goals) {
+  if (accountScope) return;
   try {
     localStorage.setItem(storageKey(STORAGE_KEY_GOALS), JSON.stringify(goals));
   } catch (e) {}
 }
 
+export function getLocalAccountDataSnapshot() {
+  if (!accountScope) return null;
+  const keys = [STORAGE_KEY_TX, STORAGE_KEY_BUDGET, STORAGE_KEY_CARDS, STORAGE_KEY_SUBS, STORAGE_KEY_GOALS];
+  if (!keys.some(key => localStorage.getItem(storageKey(key)) !== null)) return null;
+  const readStored = (key, fallback) => {
+    const stored = localStorage.getItem(storageKey(key));
+    if (stored === null) return fallback;
+    try {
+      return JSON.parse(stored);
+    } catch {
+      throw new Error('Existing browser data could not be read, so it was not imported to the server.');
+    }
+  };
+  return {
+    transactions: readStored(STORAGE_KEY_TX, []),
+    budget: { ...readStored(STORAGE_KEY_BUDGET, { monthlyLimit: 25000, categoryBudgets: [] }), currency: 'INR' },
+    cards: readStored(STORAGE_KEY_CARDS, []),
+    subscriptions: readStored(STORAGE_KEY_SUBS, []),
+    goals: readStored(STORAGE_KEY_GOALS, [])
+  };
+}
+
+export async function initializeAccountDataApi(isBackendOnline) {
+  if (!accountScope) return;
+  requireServerForAccount(isBackendOnline);
+  const accountData = await apiRequest('/account/data');
+  if (accountData.initialized) return;
+
+  const localData = getLocalAccountDataSnapshot();
+  if (!localData) return;
+  try {
+    await apiRequest('/account/data/import', {
+      method: 'POST',
+      body: JSON.stringify({ data: localData })
+    });
+    clearLocalAccountData(accountScope.slice('account_'.length));
+  } catch (error) {
+    if (error.status !== 409) throw error;
+  }
+}
+
 // ----------------- UNIFIED API CLIENT -----------------
 
 export async function fetchTransactionsApi(isBackendOnline) {
+  requireServerForAccount(isBackendOnline);
   if (isBackendOnline) {
     try {
-      const res = await fetch(`${API_BASE}/transactions`);
+      const res = await fetchFinancialResponse('/transactions');
       if (res.ok) {
         const json = await res.json();
         saveLocalTransactions(json.data);
         return json.data;
       }
-    } catch (e) {}
+    } catch (e) {
+      if (accountScope) throw e;
+    }
   }
   return getLocalTransactions();
 }
 
 export async function createTransactionApi(transactionData, isBackendOnline) {
+  requireServerForAccount(isBackendOnline);
   if (isBackendOnline) {
     try {
-      const res = await fetch(`${API_BASE}/transactions`, {
+      const res = await fetchFinancialResponse('/transactions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(transactionData)
@@ -256,7 +334,9 @@ export async function createTransactionApi(transactionData, isBackendOnline) {
         saveLocalTransactions([json.data, ...current]);
         return json.data;
       }
-    } catch (e) {}
+    } catch (e) {
+      if (accountScope) throw e;
+    }
   }
 
   const current = getLocalTransactions();
@@ -270,9 +350,10 @@ export async function createTransactionApi(transactionData, isBackendOnline) {
 }
 
 export async function updateTransactionApi(id, transactionData, isBackendOnline) {
+  requireServerForAccount(isBackendOnline);
   if (isBackendOnline) {
     try {
-      const res = await fetch(`${API_BASE}/transactions/${id}`, {
+      const res = await fetchFinancialResponse(`/transactions/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(transactionData)
@@ -284,7 +365,9 @@ export async function updateTransactionApi(id, transactionData, isBackendOnline)
         saveLocalTransactions(updated);
         return json.data;
       }
-    } catch (e) {}
+    } catch (e) {
+      if (accountScope) throw e;
+    }
   }
 
   const current = getLocalTransactions();
@@ -294,15 +377,18 @@ export async function updateTransactionApi(id, transactionData, isBackendOnline)
 }
 
 export async function deleteTransactionApi(id, isBackendOnline) {
+  requireServerForAccount(isBackendOnline);
   if (isBackendOnline) {
     try {
-      const res = await fetch(`${API_BASE}/transactions/${id}`, { method: 'DELETE' });
+      const res = await fetchFinancialResponse(`/transactions/${id}`, { method: 'DELETE' });
       if (res.ok) {
         const current = getLocalTransactions();
         saveLocalTransactions(current.filter(t => t.id !== id));
         return true;
       }
-    } catch (e) {}
+    } catch (e) {
+      if (accountScope) throw e;
+    }
   }
 
   const current = getLocalTransactions();
@@ -312,23 +398,27 @@ export async function deleteTransactionApi(id, isBackendOnline) {
 }
 
 export async function fetchBudgetApi(isBackendOnline) {
+  requireServerForAccount(isBackendOnline);
   if (isBackendOnline) {
     try {
-      const res = await fetch(`${API_BASE}/budget`);
+      const res = await fetchFinancialResponse('/budget');
       if (res.ok) {
         const json = await res.json();
         saveLocalBudget(json.data);
         return json.data;
       }
-    } catch (e) {}
+    } catch (e) {
+      if (accountScope) throw e;
+    }
   }
   return getLocalBudget();
 }
 
 export async function saveBudgetApi(budgetData, isBackendOnline) {
+  requireServerForAccount(isBackendOnline);
   if (isBackendOnline) {
     try {
-      const res = await fetch(`${API_BASE}/budget`, {
+      const res = await fetchFinancialResponse('/budget', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(budgetData)
@@ -338,7 +428,9 @@ export async function saveBudgetApi(budgetData, isBackendOnline) {
         saveLocalBudget(json.data);
         return json.data;
       }
-    } catch (e) {}
+    } catch (e) {
+      if (accountScope) throw e;
+    }
   }
 
   saveLocalBudget(budgetData);
@@ -346,38 +438,45 @@ export async function saveBudgetApi(budgetData, isBackendOnline) {
 }
 
 export async function fetchCardsApi(isBackendOnline) {
+  requireServerForAccount(isBackendOnline);
   if (isBackendOnline) {
     try {
-      const res = await fetch(`${API_BASE}/cards`);
+      const res = await fetchFinancialResponse('/cards');
       if (res.ok) {
         const json = await res.json();
         saveLocalCards(json.data);
         return json.data;
       }
-    } catch (e) {}
+    } catch (e) {
+      if (accountScope) throw e;
+    }
   }
   return getLocalCards();
 }
 
 // Subscriptions
 export async function fetchSubscriptionsApi(isBackendOnline) {
+  requireServerForAccount(isBackendOnline);
   if (isBackendOnline) {
     try {
-      const res = await fetch(`${API_BASE}/subscriptions`);
+      const res = await fetchFinancialResponse('/subscriptions');
       if (res.ok) {
         const json = await res.json();
         saveLocalSubscriptions(json.data);
         return json.data;
       }
-    } catch (e) {}
+    } catch (e) {
+      if (accountScope) throw e;
+    }
   }
   return getLocalSubscriptions();
 }
 
 export async function createSubscriptionApi(sub, isBackendOnline) {
+  requireServerForAccount(isBackendOnline);
   if (isBackendOnline) {
     try {
-      const res = await fetch(`${API_BASE}/subscriptions`, {
+      const res = await fetchFinancialResponse('/subscriptions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(sub)
@@ -388,7 +487,9 @@ export async function createSubscriptionApi(sub, isBackendOnline) {
         saveLocalSubscriptions([...cur, json.data]);
         return json.data;
       }
-    } catch (e) {}
+    } catch (e) {
+      if (accountScope) throw e;
+    }
   }
   const cur = getLocalSubscriptions();
   const created = { ...sub, id: 'sub-' + Date.now() };
@@ -397,10 +498,13 @@ export async function createSubscriptionApi(sub, isBackendOnline) {
 }
 
 export async function deleteSubscriptionApi(id, isBackendOnline) {
+  requireServerForAccount(isBackendOnline);
   if (isBackendOnline) {
     try {
-      await fetch(`${API_BASE}/subscriptions/${id}`, { method: 'DELETE' });
-    } catch (e) {}
+      await fetchFinancialResponse(`/subscriptions/${id}`, { method: 'DELETE' });
+    } catch (e) {
+      if (accountScope) throw e;
+    }
   }
   const cur = getLocalSubscriptions();
   saveLocalSubscriptions(cur.filter(s => s.id !== id));
@@ -409,23 +513,27 @@ export async function deleteSubscriptionApi(id, isBackendOnline) {
 
 // Goals
 export async function fetchGoalsApi(isBackendOnline) {
+  requireServerForAccount(isBackendOnline);
   if (isBackendOnline) {
     try {
-      const res = await fetch(`${API_BASE}/goals`);
+      const res = await fetchFinancialResponse('/goals');
       if (res.ok) {
         const json = await res.json();
         saveLocalGoals(json.data);
         return json.data;
       }
-    } catch (e) {}
+    } catch (e) {
+      if (accountScope) throw e;
+    }
   }
   return getLocalGoals();
 }
 
 export async function createGoalApi(goal, isBackendOnline) {
+  requireServerForAccount(isBackendOnline);
   if (isBackendOnline) {
     try {
-      const res = await fetch(`${API_BASE}/goals`, {
+      const res = await fetchFinancialResponse('/goals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(goal)
@@ -436,7 +544,9 @@ export async function createGoalApi(goal, isBackendOnline) {
         saveLocalGoals([...cur, json.data]);
         return json.data;
       }
-    } catch (e) {}
+    } catch (e) {
+      if (accountScope) throw e;
+    }
   }
   const cur = getLocalGoals();
   const created = { ...goal, id: 'goal-' + Date.now() };
@@ -445,9 +555,10 @@ export async function createGoalApi(goal, isBackendOnline) {
 }
 
 export async function depositGoalApi(id, amount, isBackendOnline) {
+  requireServerForAccount(isBackendOnline);
   if (isBackendOnline) {
     try {
-      const res = await fetch(`${API_BASE}/goals/${id}/deposit`, {
+      const res = await fetchFinancialResponse(`/goals/${id}/deposit`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount })
@@ -458,7 +569,9 @@ export async function depositGoalApi(id, amount, isBackendOnline) {
         saveLocalGoals(cur.map(g => (g.id === id ? json.data : g)));
         return json.data;
       }
-    } catch (e) {}
+    } catch (e) {
+      if (accountScope) throw e;
+    }
   }
   const cur = getLocalGoals();
   const updated = cur.map(g => {
@@ -472,10 +585,13 @@ export async function depositGoalApi(id, amount, isBackendOnline) {
 }
 
 export async function deleteGoalApi(id, isBackendOnline) {
+  requireServerForAccount(isBackendOnline);
   if (isBackendOnline) {
     try {
-      await fetch(`${API_BASE}/goals/${id}`, { method: 'DELETE' });
-    } catch (e) {}
+      await fetchFinancialResponse(`/goals/${id}`, { method: 'DELETE' });
+    } catch (e) {
+      if (accountScope) throw e;
+    }
   }
   const cur = getLocalGoals();
   saveLocalGoals(cur.filter(g => g.id !== id));
@@ -534,10 +650,13 @@ export async function scanReceiptApi(sampleReceipt, isBackendOnline) {
 }
 
 export async function seedDemoDataApi(isBackendOnline) {
+  requireServerForAccount(isBackendOnline);
   if (isBackendOnline) {
     try {
-      await fetch(`${API_BASE}/seed`, { method: 'POST' });
-    } catch (e) {}
+      await fetchFinancialResponse('/seed', { method: 'POST' });
+    } catch (e) {
+      if (accountScope) throw e;
+    }
   }
   saveLocalTransactions(INITIAL_TRANSACTIONS);
   saveLocalCards(INITIAL_CARDS);

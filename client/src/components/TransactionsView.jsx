@@ -1,19 +1,88 @@
 import React, { useState, useMemo } from 'react';
 import { 
-  Search, 
-  Download, 
-  RotateCcw, 
-  Trash2, 
-  Edit3, 
-  Calendar, 
-  Package, 
-  ChevronDown,
+  Search,
+  Download,
+  Trash2,
+  Edit3,
+  Calendar,
+  Package,
   Plus,
-  Filter,
-  X
+  X,
+  SlidersHorizontal,
+  ArrowDown,
+  ArrowUp,
+  TrendingUp,
+  TrendingDown,
+  Check,
+  FileSpreadsheet,
+  FileText
 } from 'lucide-react';
-import { CATEGORY_COLORS, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../constants';
+import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../constants';
 import { formatCurrency, formatDate } from '../utils';
+
+const DEFAULT_FILTERS = {
+  sortBy: 'newest',
+  dateRange: 'all',
+  customStart: '',
+  customEnd: '',
+  category: 'All',
+  type: 'All'
+};
+
+const SORT_OPTIONS = [
+  { value: 'newest', label: 'Newest first', icon: ArrowDown },
+  { value: 'oldest', label: 'Oldest first', icon: ArrowUp },
+  { value: 'highest', label: 'Highest amount', icon: TrendingUp },
+  { value: 'lowest', label: 'Lowest amount', icon: TrendingDown }
+];
+
+const DATE_RANGE_OPTIONS = [
+  { value: 'all', label: 'All time' },
+  { value: 'week', label: 'This week' },
+  { value: 'month', label: 'This month' },
+  { value: 'lastMonth', label: 'Last month' },
+  { value: 'threeMonths', label: '3 months' },
+  { value: 'custom', label: 'Custom range' }
+];
+
+function toDateKey(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function getDateRangeBounds(filters) {
+  const today = new Date();
+  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+  if (filters.dateRange === 'week') {
+    const startOfWeek = new Date(startOfToday);
+    startOfWeek.setDate(startOfToday.getDate() - ((startOfToday.getDay() + 6) % 7));
+    return { start: toDateKey(startOfWeek), end: toDateKey(startOfToday) };
+  }
+  if (filters.dateRange === 'month') {
+    return {
+      start: toDateKey(new Date(today.getFullYear(), today.getMonth(), 1)),
+      end: toDateKey(startOfToday)
+    };
+  }
+  if (filters.dateRange === 'lastMonth') {
+    return {
+      start: toDateKey(new Date(today.getFullYear(), today.getMonth() - 1, 1)),
+      end: toDateKey(new Date(today.getFullYear(), today.getMonth(), 0))
+    };
+  }
+  if (filters.dateRange === 'threeMonths') {
+    const start = new Date(startOfToday);
+    start.setMonth(start.getMonth() - 3);
+    return { start: toDateKey(start), end: toDateKey(startOfToday) };
+  }
+  if (filters.dateRange === 'custom') {
+    return { start: filters.customStart, end: filters.customEnd };
+  }
+  return { start: '', end: '' };
+}
 
 export default function TransactionsView({
   transactions,
@@ -21,13 +90,17 @@ export default function TransactionsView({
   onDelete,
   onNewTransaction,
   onExportCsv,
+  onExportExcel,
+  onExportPdf,
   currency,
-  selectedMonth
+  selectedMonth,
+  selectedDate,
+  onClearSelectedDate
 }) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All');
-  const [typeFilter, setTypeFilter] = useState('All'); // 'All' | 'income' | 'expense'
-  const [sortBy, setSortBy] = useState('newest'); // 'newest' | 'oldest' | 'highest' | 'lowest'
+  const [filters, setFilters] = useState(DEFAULT_FILTERS);
+  const [draftFilters, setDraftFilters] = useState(DEFAULT_FILTERS);
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
 
   // Combined categories
   const allCategories = useMemo(() => {
@@ -36,17 +109,24 @@ export default function TransactionsView({
 
   // Filter and sort transactions
   const filtered = useMemo(() => {
+    const { start, end } = getDateRangeBounds(filters);
     return transactions.filter(t => {
+      const transactionDate = t.date ? t.date.slice(0, 10) : '';
+      if (selectedDate && transactionDate !== selectedDate) return false;
       // Month filter
       if (selectedMonth !== 'All' && (!t.date || !t.date.startsWith(selectedMonth))) {
         return false;
       }
+      if ((start && (!transactionDate || transactionDate < start)) ||
+        (end && (!transactionDate || transactionDate > end))) {
+        return false;
+      }
       // Category filter
-      if (selectedCategory !== 'All' && t.category !== selectedCategory) {
+      if (filters.category !== 'All' && t.category !== filters.category) {
         return false;
       }
       // Type filter
-      if (typeFilter !== 'All' && t.type !== typeFilter) {
+      if (filters.type !== 'All' && t.type !== filters.type) {
         return false;
       }
       // Search term
@@ -59,210 +139,328 @@ export default function TransactionsView({
       }
       return true;
     }).sort((a, b) => {
-      if (sortBy === 'newest') return new Date(b.date).getTime() - new Date(a.date).getTime();
-      if (sortBy === 'oldest') return new Date(a.date).getTime() - new Date(b.date).getTime();
-      if (sortBy === 'highest') return Number(b.amount) - Number(a.amount);
-      if (sortBy === 'lowest') return Number(a.amount) - Number(b.amount);
+      if (filters.sortBy === 'newest') return new Date(b.date).getTime() - new Date(a.date).getTime();
+      if (filters.sortBy === 'oldest') return new Date(a.date).getTime() - new Date(b.date).getTime();
+      if (filters.sortBy === 'highest') return Number(b.amount) - Number(a.amount);
+      if (filters.sortBy === 'lowest') return Number(a.amount) - Number(b.amount);
       return 0;
     });
-  }, [transactions, selectedMonth, selectedCategory, typeFilter, searchTerm, sortBy]);
+  }, [transactions, selectedMonth, selectedDate, filters, searchTerm]);
 
-  const hasFilters = searchTerm !== '' || selectedCategory !== 'All' || typeFilter !== 'All' || sortBy !== 'newest';
+  const hasFilters = searchTerm !== '' ||
+    Boolean(selectedDate) ||
+    filters.sortBy !== DEFAULT_FILTERS.sortBy ||
+    filters.dateRange !== DEFAULT_FILTERS.dateRange ||
+    filters.category !== DEFAULT_FILTERS.category ||
+    filters.type !== DEFAULT_FILTERS.type;
 
   const clearFilters = () => {
     setSearchTerm('');
-    setSelectedCategory('All');
-    setTypeFilter('All');
-    setSortBy('newest');
+    setFilters(DEFAULT_FILTERS);
+    setDraftFilters(DEFAULT_FILTERS);
+    onClearSelectedDate?.();
+  };
+
+  const updateDraftFilter = (key, value) => {
+    setDraftFilters(current => ({ ...current, [key]: value }));
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      
-      {/* Page Header matching photos 3, 4, 5 */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="transactions-view animate-fade-in">
+      <div className="transactions-page-heading">
         <div>
-          <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#ff6b00]">
+          <span className="transactions-eyebrow">
             EVERY RUPEE, ACCOUNTED FOR
           </span>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight mt-1">
+          <h2>
             Transaction history
           </h2>
-          <p className="text-xs sm:text-sm text-[#8c827a] mt-1">
+          <p>
             Review, find, edit and export your income and expenses.
           </p>
         </div>
 
-        {/* Large + New transaction button matching the photo */}
         <button
           onClick={onNewTransaction}
-          className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-[#ff6b00] to-[#ea580c] hover:from-[#ff771a] hover:to-[#f97316] text-white text-xs sm:text-sm font-bold shadow-lg shadow-[#ff6b00]/25 transition-all self-start sm:self-auto cursor-pointer"
+          className="transaction-create-button button-primary self-start sm:self-auto"
         >
           <Plus className="w-4 h-4" />
           <span>New transaction</span>
         </button>
       </div>
 
-      {/* Main Filter Container Card matching photo */}
-      <div className="rounded-3xl bg-[#181615] border border-[#262220] shadow-xl p-6 sm:p-7 space-y-5">
-        
-        {/* Top line of card: All transactions • X matching + Export CSV */}
-        <div className="flex items-center justify-between pb-4 border-b border-[#24201e]">
+      <section className="transaction-browser glass-panel">
+        <div className="transaction-browser-heading">
           <div>
-            <h3 className="font-extrabold text-white text-base">
-              All transactions
-            </h3>
-            <p className="text-xs text-[#8c827a]">
-              {filtered.length} matching {filtered.length === 1 ? 'transaction' : 'transactions'}
+            <h3>{selectedDate ? 'Transactions by date' : 'All transactions'}</h3>
+            <p>
+              {selectedDate
+                ? `${new Date(`${selectedDate}T00:00:00`).toLocaleDateString(undefined, { dateStyle: 'long' })} · ${filtered.length} ${filtered.length === 1 ? 'transaction' : 'transactions'}`
+                : `${filtered.length} matching ${filtered.length === 1 ? 'transaction' : 'transactions'}`}
             </p>
           </div>
 
-          <button
-            onClick={onExportCsv}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-[#24201e] hover:bg-[#2e2a27] text-[#d4ccc5] hover:text-white border border-[#332e2b] transition-all cursor-pointer"
-          >
-            <Download className="w-3.5 h-3.5 text-[#ff6b00]" />
-            <span>Export CSV</span>
-          </button>
+          <div className="transaction-export-actions">
+            <button
+              type="button"
+              onClick={() => onExportCsv(filtered)}
+              className="transaction-export-button"
+              aria-label="Export filtered transactions as CSV"
+              title="Export CSV"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>CSV</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onExportExcel(filtered)}
+              className="transaction-export-button"
+              aria-label="Export filtered transactions as Excel"
+              title="Export Excel"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              <span>Excel</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onExportPdf(filtered)}
+              className="transaction-export-button"
+              aria-label="Export filtered transactions as PDF"
+              title="Export PDF"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>PDF</span>
+            </button>
+          </div>
         </div>
 
-        {/* Filter Toolbar matching photo */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 pt-1">
-          
-          {/* Search Input (5 cols) */}
-          <div className="lg:col-span-5 relative">
-            <Search className="w-4 h-4 text-[#736a63] absolute left-3.5 top-1/2 -translate-y-1/2" />
+        {selectedDate && (
+          <div className="transaction-selected-date">
+            <Calendar size={14} />
+            <span>Showing transactions for {new Date(`${selectedDate}T00:00:00`).toLocaleDateString(undefined, { dateStyle: 'long' })}</span>
+            <button type="button" onClick={onClearSelectedDate}>Clear date</button>
+          </div>
+        )}
+
+        <div className="transaction-toolbar">
+          <div className="transaction-search">
+            <Search className="transaction-search-icon" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search your transactions..."
-              className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-[#1c1918] border border-[#2e2a27] focus:border-[#ff6b00] text-xs sm:text-sm text-white placeholder-[#736a63] focus:outline-none transition-all"
+              aria-label="Search transactions"
             />
             {searchTerm && (
-              <button 
-                onClick={() => setSearchTerm('')} 
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#736a63] hover:text-white"
-              >
+              <button onClick={() => setSearchTerm('')} className="transaction-search-clear" aria-label="Clear search">
                 <X className="w-3.5 h-3.5" />
               </button>
             )}
           </div>
+          <button
+            type="button"
+            className={`transaction-filter-button ${hasFilters && !searchTerm ? 'is-active' : ''}`}
+            onClick={() => {
+              setDraftFilters(filters);
+              setShowFilterPanel(true);
+            }}
+            aria-haspopup="dialog"
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+            <span>Filter &amp; Sort</span>
+          </button>
 
-          {/* Sort Dropdown (2 cols) */}
-          <div className="lg:col-span-2 relative">
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="w-full appearance-none px-3.5 py-2.5 rounded-2xl bg-[#1c1918] border border-[#2e2a27] focus:border-[#ff6b00] text-xs sm:text-sm text-[#d4ccc5] focus:outline-none cursor-pointer pr-8"
-            >
-              <option value="newest" className="bg-[#1c1918]">Newest first</option>
-              <option value="oldest" className="bg-[#1c1918]">Oldest first</option>
-              <option value="highest" className="bg-[#1c1918]">Amount: High to Low</option>
-              <option value="lowest" className="bg-[#1c1918]">Amount: Low to High</option>
-            </select>
-            <ChevronDown className="w-3.5 h-3.5 text-[#736a63] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-          </div>
-
-          {/* Category Dropdown (2 cols) */}
-          <div className="lg:col-span-2 relative">
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full appearance-none px-3.5 py-2.5 rounded-2xl bg-[#1c1918] border border-[#2e2a27] focus:border-[#ff6b00] text-xs sm:text-sm text-[#d4ccc5] focus:outline-none cursor-pointer pr-8"
-            >
-              <option value="All" className="bg-[#1c1918]">All categories</option>
-              {allCategories.map(cat => (
-                <option key={cat} value={cat} className="bg-[#1c1918]">{cat}</option>
-              ))}
-            </select>
-            <ChevronDown className="w-3.5 h-3.5 text-[#736a63] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-          </div>
-
-          {/* Type Dropdown (2 cols) */}
-          <div className="lg:col-span-2 relative">
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="w-full appearance-none px-3.5 py-2.5 rounded-2xl bg-[#1c1918] border border-[#2e2a27] focus:border-[#ff6b00] text-xs sm:text-sm text-[#d4ccc5] focus:outline-none cursor-pointer pr-8"
-            >
-              <option value="All" className="bg-[#1c1918]">All types</option>
-              <option value="expense" className="bg-[#1c1918]">Expenses only</option>
-              <option value="income" className="bg-[#1c1918]">Income only</option>
-            </select>
-            <ChevronDown className="w-3.5 h-3.5 text-[#736a63] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-          </div>
-
-          {/* Clear Filters (1 col) */}
-          <div className="lg:col-span-1 flex items-center justify-center">
+          <div className="transaction-clear-container">
             {hasFilters ? (
               <button
                 onClick={clearFilters}
-                className="text-xs text-[#ff6b00] hover:underline font-semibold"
+                className="transaction-clear-button"
                 title="Reset filters"
               >
                 Clear
               </button>
             ) : null}
           </div>
-
         </div>
 
-        {/* Transactions Table / List or Empty State matching photo */}
-        <div className="pt-2">
+        {showFilterPanel && (
+          <div
+            className="transaction-filter-backdrop"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) setShowFilterPanel(false);
+            }}
+          >
+            <section className="transaction-filter-panel" role="dialog" aria-modal="true" aria-labelledby="transaction-filter-title">
+              <div className="transaction-filter-heading">
+                <div className="transaction-filter-title">
+                  <span className="transaction-filter-title-icon"><SlidersHorizontal /></span>
+                  <h3 id="transaction-filter-title">Filter &amp; Sort</h3>
+                </div>
+                <button type="button" className="transaction-filter-reset" onClick={clearFilters}>Reset</button>
+                <button type="button" className="transaction-filter-close" onClick={() => setShowFilterPanel(false)} aria-label="Close filters">
+                  <X />
+                </button>
+              </div>
+
+              <div className="transaction-filter-content">
+                <section className="transaction-filter-section">
+                  <h4>Sort by</h4>
+                  <div className="transaction-sort-options">
+                    {SORT_OPTIONS.map(({ value, label, icon: Icon }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        className={`transaction-filter-choice ${draftFilters.sortBy === value ? 'is-selected' : ''}`}
+                        onClick={() => updateDraftFilter('sortBy', value)}
+                        aria-pressed={draftFilters.sortBy === value}
+                      >
+                        <Icon />
+                        <span>{label}</span>
+                        {draftFilters.sortBy === value && <span className="transaction-choice-indicator" />}
+                      </button>
+                    ))}
+                  </div>
+                </section>
+
+                <section className="transaction-filter-section">
+                  <h4>Date range</h4>
+                  <div className="transaction-filter-chips">
+                    {DATE_RANGE_OPTIONS.map(({ value, label }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        className={`transaction-filter-chip ${draftFilters.dateRange === value ? 'is-selected' : ''}`}
+                        onClick={() => updateDraftFilter('dateRange', value)}
+                        aria-pressed={draftFilters.dateRange === value}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  {draftFilters.dateRange === 'custom' && (
+                    <div className="transaction-custom-date-range">
+                      <label>
+                        From
+                        <input
+                          type="date"
+                          value={draftFilters.customStart}
+                          max={draftFilters.customEnd || undefined}
+                          onChange={(event) => updateDraftFilter('customStart', event.target.value)}
+                        />
+                      </label>
+                      <label>
+                        To
+                        <input
+                          type="date"
+                          value={draftFilters.customEnd}
+                          min={draftFilters.customStart || undefined}
+                          onChange={(event) => updateDraftFilter('customEnd', event.target.value)}
+                        />
+                      </label>
+                    </div>
+                  )}
+                </section>
+
+                <section className="transaction-filter-section">
+                  <h4>Type</h4>
+                  <div className="transaction-filter-chips">
+                    {[
+                      { value: 'All', label: 'All types' },
+                      { value: 'expense', label: 'Expenses' },
+                      { value: 'income', label: 'Income' }
+                    ].map(({ value, label }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        className={`transaction-filter-chip ${draftFilters.type === value ? 'is-selected' : ''}`}
+                        onClick={() => updateDraftFilter('type', value)}
+                        aria-pressed={draftFilters.type === value}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </section>
+
+                <section className="transaction-filter-section">
+                  <h4>Category</h4>
+                  <div className="transaction-filter-chips">
+                    {['All', ...allCategories].map(category => (
+                      <button
+                        key={category}
+                        type="button"
+                        className={`transaction-filter-chip ${draftFilters.category === category ? 'is-selected' : ''}`}
+                        onClick={() => updateDraftFilter('category', category)}
+                        aria-pressed={draftFilters.category === category}
+                      >
+                        {category}
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              </div>
+
+              <button
+                type="button"
+                className="transaction-filter-apply button-primary"
+                onClick={() => {
+                  setFilters(draftFilters);
+                  setShowFilterPanel(false);
+                }}
+              >
+                <Check />
+                <span>Apply filters</span>
+              </button>
+            </section>
+          </div>
+        )}
+
+        <div className="transaction-list">
           {filtered.length > 0 ? (
-            <div className="space-y-2.5">
+            <div className="transaction-list-items">
               {filtered.map((tx) => {
                 const isIncome = tx.type === 'income';
-                const catColor = CATEGORY_COLORS[tx.category] || '#8c827a';
 
                 return (
                   <div
                     key={tx.id}
-                    className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-2xl bg-[#1c1918] hover:bg-[#221f1d] border border-[#262220] hover:border-[#ff6b00]/30 transition-all gap-3 group"
+                    className="transaction-row"
                   >
-                    <div className="flex items-center gap-3">
-                      <div 
-                        className="w-3.5 h-3.5 rounded-full shrink-0"
-                        style={{ backgroundColor: catColor }}
-                        title={tx.category}
-                      />
-                      <div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h4 className="font-bold text-sm text-white tracking-tight">
-                            {tx.title}
-                          </h4>
-                          <span 
-                            className="text-[10px] font-bold px-2 py-0.5 rounded-md text-white"
-                            style={{ backgroundColor: catColor }}
-                          >
+                    <div className="transaction-row-main">
+                      <span className={`transaction-type-icon ${isIncome ? 'is-income' : 'is-expense'}`} aria-hidden="true">
+                        {isIncome ? '+' : '−'}
+                      </span>
+                      <div className="transaction-row-description">
+                        <div className="transaction-row-title">
+                          <h4>{tx.title}</h4>
+                          <span className={`transaction-category ${isIncome ? 'is-income' : 'is-expense'}`}>
                             {tx.category}
                           </span>
                         </div>
-                        <div className="flex items-center gap-2 text-xs text-[#8c827a] mt-1">
-                          <span className="flex items-center gap-1">
-                            <Calendar className="w-3 h-3" />
+                        <div className="transaction-row-meta">
+                          <span>
+                            <Calendar />
                             {formatDate(tx.date)}
                           </span>
-                          {tx.notes && <span>• {tx.notes}</span>}
+                          {tx.notes && <span className="transaction-note">{tx.notes}</span>}
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between sm:justify-end gap-3 self-end sm:self-auto w-full sm:w-auto">
-                      <span className={`font-mono font-bold text-sm sm:text-base ${
-                        isIncome ? 'text-[#22c55e]' : 'text-[#e6ded8]'
-                      }`}>
+                    <div className="transaction-row-actions">
+                      <span className={`transaction-amount ${isIncome ? 'is-income' : 'is-expense'}`}>
                         {isIncome ? '+' : '-'}{formatCurrency(tx.amount, currency)}
                       </span>
 
-                      <div className="flex items-center gap-1 opacity-90 sm:opacity-30 group-hover:opacity-100 transition-opacity">
+                      <div className="transaction-action-buttons">
                         <button
                           onClick={() => onEdit(tx)}
-                          className="p-1.5 rounded-lg text-[#8c827a] hover:text-[#ff6b00] hover:bg-[#262220] transition-colors"
-                          title="Edit Transaction"
+                          className="transaction-action-button"
+                          title="Edit transaction"
+                          aria-label={`Edit ${tx.title}`}
                         >
-                          <Edit3 className="w-4 h-4" />
+                          <Edit3 />
                         </button>
                         <button
                           onClick={() => {
@@ -270,10 +468,11 @@ export default function TransactionsView({
                               onDelete(tx.id);
                             }
                           }}
-                          className="p-1.5 rounded-lg text-[#8c827a] hover:text-rose-400 hover:bg-[#262220] transition-colors"
-                          title="Delete Transaction"
+                          className="transaction-action-button is-delete"
+                          title="Delete transaction"
+                          aria-label={`Delete ${tx.title}`}
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 />
                         </button>
                       </div>
                     </div>
@@ -282,23 +481,18 @@ export default function TransactionsView({
               })}
             </div>
           ) : (
-            /* Empty State exactly matching the user's photo! */
-            <div className="py-16 flex flex-col items-center justify-center text-center">
-              <div className="w-14 h-14 rounded-2xl bg-[#24201e] border border-[#332e2b] flex items-center justify-center text-[#ff6b00] mb-3 shadow-inner">
-                <Package className="w-7 h-7" />
+            <div className="transaction-empty-state">
+              <div className="transaction-empty-icon">
+                <Package />
               </div>
-              <h4 className="text-sm font-bold text-white mb-1">
-                No transactions found
-              </h4>
-              <p className="text-xs text-[#8c827a] max-w-xs">
+              <h4>No transactions found</h4>
+              <p>
                 {hasFilters ? 'Try adjusting your search query or filters.' : 'Click "+ New transaction" to record your first entry.'}
               </p>
             </div>
           )}
         </div>
-
-      </div>
-
+      </section>
     </div>
   );
 }

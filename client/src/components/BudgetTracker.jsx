@@ -51,7 +51,7 @@ export default function BudgetTracker({
   };
 
   return (
-    <div className="rounded-2xl bg-white dark:bg-slate-900 p-6 border border-slate-200 dark:border-slate-800 shadow-sm mb-8 transition-colors">
+    <div className="budget-widget rounded-2xl bg-white dark:bg-slate-900 p-6 border border-slate-200 dark:border-slate-800 shadow-sm mb-8 transition-colors">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
         
         {/* Header Title */}

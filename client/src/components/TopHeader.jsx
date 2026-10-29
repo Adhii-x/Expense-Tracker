@@ -1,14 +1,14 @@
-import React, { useState, useMemo } from 'react';
-import { 
-  Search, 
-  Calendar as CalendarIcon, 
-  ChevronLeft, 
-  ChevronRight, 
-  ChevronDown, 
-  Bell, 
-  Plus, 
+import React, { useState } from 'react';
+import {
+  Search,
+  Calendar as CalendarIcon,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  Bell,
+  Plus,
   X,
-  Sparkles
+  Command
 } from 'lucide-react';
 import { formatMonthYear } from '../utils';
 
@@ -25,7 +25,6 @@ export default function TopHeader({
   const [showMonthDropdown, setShowMonthDropdown] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
 
-  // Month navigation: step backward or forward
   const currentMonthIndex = availableMonths.indexOf(selectedMonth);
 
   const handlePrevMonth = () => {
@@ -44,167 +43,105 @@ export default function TopHeader({
     }
   };
 
-  // Capitalize active tab title
-  const pageTitles = {
-    dashboard: 'Dashboard',
-    transactions: 'Transactions',
-    analytics: 'Analytics',
-    wellthplan: 'WellthPlan 2.0',
-    budgets: 'Budgets',
-    settings: 'Settings',
-    ai: 'FinAI Copilot'
-  };
-
-  const currentTitle = pageTitles[activeTab] || 'Dashboard';
-  const currentDateFormatted = 'Friday, 16 October 2026';
-
   const notifications = [
-    { id: 1, title: 'AI Spending Alert', desc: 'Dining out is 38% above usual pace.', time: '10m ago' },
-    { id: 2, title: 'Scholarship Deposited', desc: '+₹1,200.00 credited to account.', time: '2h ago' },
-    { id: 3, title: 'Budget Limit', desc: 'You have used 68% of monthly limit.', time: '1d ago' },
+    { id: 1, title: 'AI spending insight', desc: 'Review your latest spending patterns.', time: '10m ago' },
+    { id: 2, title: 'Budget check-in', desc: 'Your monthly budget is ready to review.', time: '2h ago' }
   ];
 
   return (
-    <header className="min-h-20 bg-[#0e0d0d] border-b border-[#24201e] px-4 sm:px-6 lg:px-8 py-3 flex flex-col md:flex-row md:items-center justify-between gap-4 sticky top-0 z-30 select-none">
-      
-      {/* Left: Date Subtitle + Main Page Title matching photo */}
-      <div className="flex flex-col justify-center">
-        <span className="text-[11px] font-medium text-[#8c827a]">
-          {currentDateFormatted}
-        </span>
-        <h1 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
-          {currentTitle}
-        </h1>
-      </div>
-
-      {/* Center: Search Transactions Input matching photo */}
-      <div className="flex-1 max-w-md w-full">
-        <div className="relative">
-          <Search className="w-4 h-4 text-[#736a63] absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search transactions..."
-            className="w-full pl-10 pr-9 py-2 rounded-2xl bg-[#181615] border border-[#2b2725] focus:border-[#ff6b00] text-xs sm:text-sm text-white placeholder-[#736a63] focus:outline-none transition-all shadow-inner"
-          />
-          {searchTerm && (
-            <button
-              onClick={() => setSearchTerm('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#736a63] hover:text-white"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Right Controls matching photo: < [calendar icon] Oct 2026 ⌄ > | Bell | + Add transaction | User pill */}
-      <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-        
-        {/* Month Stepper Selector matching photo */}
-        <div className="flex items-center bg-[#181615] border border-[#2b2725] rounded-2xl p-1 text-xs">
-          <button
-            onClick={handlePrevMonth}
-            className="p-1 rounded-xl text-[#8c827a] hover:text-white hover:bg-[#24201e] transition-colors cursor-pointer"
-            title="Previous billing month"
-          >
-            <ChevronLeft className="w-3.5 h-3.5" />
+    <header className="app-header" data-active-tab={activeTab}>
+      <div className="header-search">
+        <Search size={16} aria-hidden="true" />
+        <input
+          type="search"
+          value={searchTerm}
+          onChange={(event) => setSearchTerm(event.target.value)}
+          placeholder="Search transactions"
+          aria-label="Search transactions"
+        />
+        {searchTerm ? (
+          <button type="button" className="search-clear" onClick={() => setSearchTerm('')} aria-label="Clear search">
+            <X size={14} />
           </button>
+        ) : (
+          <button type="button" className="search-shortcut" onClick={onOpenCommandPalette} aria-label="Open command menu">
+            <Command size={12} /><span>K</span>
+          </button>
+        )}
+      </div>
 
-          {/* Month Dropdown Button */}
-          <div className="relative">
+      <div className="header-actions">
+        <span className="header-language">EN <ChevronDown size={11} /></span>
+        <div className="month-picker header-month-picker">
+          <button type="button" className="month-arrow" onClick={handlePrevMonth} title="Previous month" aria-label="Previous month">
+            <ChevronLeft size={15} />
+          </button>
+          <div className="month-dropdown-anchor">
             <button
+              type="button"
+              className="month-select"
               onClick={() => setShowMonthDropdown(!showMonthDropdown)}
-              className="flex items-center gap-1.5 px-2 py-1 text-xs font-bold text-[#d4ccc5] hover:text-white transition-colors cursor-pointer"
+              aria-expanded={showMonthDropdown}
             >
-              <CalendarIcon className="w-3.5 h-3.5 text-[#ff6b00]" />
-              <span>{selectedMonth === 'All' ? 'All Months' : formatMonthYear(selectedMonth)}</span>
-              <ChevronDown className="w-3 h-3 text-[#736a63]" />
+              <CalendarIcon size={15} />
+              <span>{selectedMonth === 'All' ? 'All months' : formatMonthYear(selectedMonth)}</span>
+              <ChevronDown size={13} />
             </button>
-
             {showMonthDropdown && (
-              <div className="absolute left-0 mt-2 w-40 rounded-2xl bg-[#181615] border border-[#2e2a27] shadow-2xl p-2 z-50 animate-fade-in">
-                <button
-                  onClick={() => { setSelectedMonth('All'); setShowMonthDropdown(false); }}
-                  className={`w-full text-left px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
-                    selectedMonth === 'All' ? 'bg-[#ff6b00] text-white' : 'text-[#a89d95] hover:text-white hover:bg-[#201d1b]'
-                  }`}
-                >
-                  All Months
+              <div className="header-popover month-popover">
+                <button type="button" onClick={() => { setSelectedMonth('All'); setShowMonthDropdown(false); }}>
+                  All months
                 </button>
-                {availableMonths.map((m) => (
+                {availableMonths.map((month) => (
                   <button
-                    key={m}
-                    onClick={() => { setSelectedMonth(m); setShowMonthDropdown(false); }}
-                    className={`w-full text-left px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
-                      selectedMonth === m ? 'bg-[#ff6b00] text-white' : 'text-[#a89d95] hover:text-white hover:bg-[#201d1b]'
-                    }`}
+                    type="button"
+                    key={month}
+                    className={selectedMonth === month ? 'is-selected' : ''}
+                    onClick={() => { setSelectedMonth(month); setShowMonthDropdown(false); }}
                   >
-                    {formatMonthYear(m)}
+                    {formatMonthYear(month)}
                   </button>
                 ))}
               </div>
             )}
           </div>
-
-          <button
-            onClick={handleNextMonth}
-            className="p-1 rounded-xl text-[#8c827a] hover:text-white hover:bg-[#24201e] transition-colors cursor-pointer"
-            title="Next billing month"
-          >
-            <ChevronRight className="w-3.5 h-3.5" />
+          <button type="button" className="month-arrow" onClick={handleNextMonth} title="Next month" aria-label="Next month">
+            <ChevronRight size={15} />
           </button>
         </div>
 
-        {/* Notifications Bell */}
-        <div className="relative">
+        <div className="notification-anchor">
           <button
+            type="button"
+            className="header-icon-button"
             onClick={() => setShowNotifications(!showNotifications)}
-            className="relative p-2 rounded-xl bg-[#181615] hover:bg-[#201d1b] text-[#a89d95] hover:text-white border border-[#2b2725] transition-all cursor-pointer"
             title="Notifications"
+            aria-label="Notifications"
+            aria-expanded={showNotifications}
           >
-            <Bell className="w-4 h-4" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#ff6b00] ring-2 ring-[#0e0d0d]" />
+            <Bell size={17} />
+            <span className="notification-dot" />
           </button>
-
           {showNotifications && (
-            <div className="absolute right-0 mt-2 w-72 rounded-2xl bg-[#181615] border border-[#2e2a27] shadow-2xl p-3 z-50 animate-fade-in">
-              <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#2b2725]">
-                <span className="text-xs font-bold text-white uppercase tracking-wider">Notifications</span>
-                <span className="text-[10px] text-[#ff6b00] font-semibold cursor-pointer">Clear</span>
-              </div>
-              <div className="space-y-2">
-                {notifications.map(n => (
-                  <div key={n.id} className="p-2 rounded-xl bg-[#1f1d1b] text-xs">
-                    <div className="font-semibold text-white">{n.title}</div>
-                    <div className="text-[11px] text-[#8c827a]">{n.desc}</div>
-                  </div>
-                ))}
-              </div>
+            <div className="header-popover notification-popover">
+              <strong>Notifications</strong>
+              {notifications.map((notification) => (
+                <div className="notification-item" key={notification.id}>
+                  <b>{notification.title}</b>
+                  <span>{notification.desc}</span>
+                  <small>{notification.time}</small>
+                </div>
+              ))}
             </div>
           )}
         </div>
 
-        {/* + Add transaction prominent button matching photo */}
-        <button
-          onClick={onAddTransactionClick}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-gradient-to-r from-[#ff6b00] to-[#ea580c] hover:from-[#ff771a] hover:to-[#f97316] text-white text-xs sm:text-sm font-bold shadow-lg shadow-[#ff6b00]/25 transition-all cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Add transaction</span>
+        <button type="button" className="header-add-button button-primary" onClick={onAddTransactionClick}>
+          <Plus size={16} />
+          <span>New</span>
         </button>
-
-        {/* User Avatar Letter Circle matching photo ("T") */}
-        <div 
-          className="w-9 h-9 rounded-2xl bg-[#262220] border border-[#38332f] flex items-center justify-center font-bold text-sm text-white shadow-sm cursor-pointer hover:border-[#ff6b00] transition-colors"
-          title="Account Profile"
-        >
-          T
-        </div>
-
+        <button type="button" className="header-avatar" title="Account profile" aria-label="Account profile">S</button>
       </div>
-
     </header>
   );
 }

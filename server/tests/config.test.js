@@ -10,10 +10,23 @@ test('demo mode is available when explicitly selected', () => {
   assert.deepEqual(validateEnvironment({ NODE_ENV: 'development', AUTH_MODE: 'demo' }), { mode: 'demo' });
 });
 
-test('production fails closed while shared financial storage is in use', () => {
+test('production requires durable account storage and sessions', () => {
   assert.throws(
     () => validateEnvironment({ NODE_ENV: 'production', AUTH_MODE: 'authenticated' }),
-    /Production startup is disabled/
+    /Production requires DATABASE_URL and SESSION_SECRET/
+  );
+  assert.deepEqual(validateEnvironment({
+    NODE_ENV: 'production',
+    AUTH_MODE: 'authenticated',
+    DATABASE_URL: 'postgres://db',
+    SESSION_SECRET: 'test-secret'
+  }), { mode: 'authenticated' });
+});
+
+test('production rejects demo authentication mode', () => {
+  assert.throws(
+    () => validateEnvironment({ NODE_ENV: 'production', AUTH_MODE: 'demo', DATABASE_URL: 'postgres://db', SESSION_SECRET: 'test-secret' }),
+    /Production requires AUTH_MODE=authenticated/
   );
 });
 

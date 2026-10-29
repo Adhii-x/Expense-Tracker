@@ -11,7 +11,7 @@ import {
   Legend
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
-import { ArrowUpRight, TrendingUp } from 'lucide-react';
+import { TrendingUp } from 'lucide-react';
 import { formatCurrency } from '../utils';
 
 ChartJS.register(
@@ -25,7 +25,7 @@ ChartJS.register(
   Legend
 );
 
-export default function BalanceChartCard({ totalBalance, currency }) {
+export default function BalanceChartCard({ totalBalance, savedThisMonth = totalBalance, currency }) {
   const [timeframe, setTimeframe] = useState('6 month'); // '1 year' | '6 month' | '3 month' | '1 month'
 
   const timeframes = ['1 year', '6 month', '3 month', '1 month'];
@@ -59,19 +59,19 @@ export default function BalanceChartCard({ totalBalance, currency }) {
         label: 'Actual Balance',
         data: current.data,
         fill: true,
-        borderColor: '#ff6b00',
+        borderColor: '#101522',
         borderWidth: 2.5,
         backgroundColor: (context) => {
           const ctx = context.chart.ctx;
           const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-          gradient.addColorStop(0, 'rgba(255, 107, 0, 0.35)');
-          gradient.addColorStop(0.65, 'rgba(255, 107, 0, 0.08)');
-          gradient.addColorStop(1, 'rgba(255, 107, 0, 0.0)');
+          gradient.addColorStop(0, 'rgba(34, 119, 255, 0.22)');
+          gradient.addColorStop(0.65, 'rgba(34, 119, 255, 0.07)');
+          gradient.addColorStop(1, 'rgba(34, 119, 255, 0.0)');
           return gradient;
         },
         tension: 0.45,
         pointBackgroundColor: '#ffffff',
-        pointBorderColor: '#ff6b00',
+        pointBorderColor: '#2277ff',
         pointBorderWidth: 2,
         pointRadius: (ctx) => (ctx.dataIndex === current.data.length - 3 ? 6 : 0),
         pointHoverRadius: 7,
@@ -87,9 +87,9 @@ export default function BalanceChartCard({ totalBalance, currency }) {
       tooltip: {
         backgroundColor: '#ffffff',
         titleColor: '#0f172a',
-        bodyColor: '#ff6b00',
+        bodyColor: '#0056ff',
         bodyFont: { weight: 'bold', size: 13 },
-        borderColor: '#ff6b00',
+        borderColor: '#c5d5ff',
         borderWidth: 1,
         padding: 10,
         cornerRadius: 12,
@@ -103,22 +103,22 @@ export default function BalanceChartCard({ totalBalance, currency }) {
     scales: {
       x: {
         grid: {
-          color: 'rgba(255, 255, 255, 0.04)',
+          color: 'rgba(16, 21, 34, 0.08)',
           drawBorder: false,
         },
         ticks: {
-          color: '#736a63',
+          color: 'rgba(16, 21, 34, 0.62)',
           font: { size: 11, weight: '500' }
         }
       },
       y: {
         position: 'right',
         grid: {
-          color: 'rgba(255, 255, 255, 0.04)',
+          color: 'rgba(16, 21, 34, 0.08)',
           drawBorder: false,
         },
         ticks: {
-          color: '#736a63',
+          color: 'rgba(16, 21, 34, 0.62)',
           font: { size: 11 },
           callback: (val) => `₹${val / 1000}k`
         }
@@ -127,19 +127,19 @@ export default function BalanceChartCard({ totalBalance, currency }) {
   };
 
   return (
-    <div className="rounded-3xl bg-gradient-to-b from-[#181615] to-[#121110] p-6 sm:p-7 border border-[#262220] shadow-xl relative overflow-hidden transition-all">
+    <div className="balance-card rounded-3xl bg-gradient-to-br from-white to-[#e3e7fc] p-6 sm:p-7 border border-[#dce3f6] shadow-xl relative overflow-hidden transition-all">
       
       {/* Top Header: Total Balance + Timeframe Switcher */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
         <div>
-          <span className="text-xs font-semibold tracking-wider uppercase text-[#8c827a]">
-            Total Balance
+          <span className="text-xs font-semibold tracking-wider uppercase text-slate-500">
+            Saved this month
           </span>
           <div className="flex items-center gap-3 mt-1">
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-              {formatCurrency(totalBalance > 0 ? totalBalance : 10120.50, currency)}
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-950 tracking-tight">
+              {formatCurrency(savedThisMonth, currency)}
             </h2>
-            <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#163824] border border-[#22c55e]/30 text-[#22c55e] text-xs font-bold">
+            <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-50 border border-blue-100 text-blue-700 text-xs font-bold">
               <TrendingUp className="w-3.5 h-3.5" />
               <span>↑ 2.92%</span>
             </div>
@@ -147,15 +147,15 @@ export default function BalanceChartCard({ totalBalance, currency }) {
         </div>
 
         {/* Timeframe Buttons */}
-        <div className="flex items-center p-1 bg-[#12100f] rounded-2xl border border-[#2b2725] self-start sm:self-auto">
+        <div className="balance-timeframe-switcher flex items-center p-1 bg-slate-100 rounded-2xl border border-slate-200 self-start sm:self-auto">
           {timeframes.map((tf) => (
             <button
               key={tf}
               onClick={() => setTimeframe(tf)}
               className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
                 timeframe === tf
-                  ? 'bg-[#262220] text-white shadow-md'
-                  : 'text-[#8c827a] hover:text-[#e6ded8]'
+                  ? 'bg-white text-blue-700 shadow-sm'
+                  : 'text-slate-500 hover:text-blue-700'
               }`}
             >
               {tf}
@@ -164,35 +164,29 @@ export default function BalanceChartCard({ totalBalance, currency }) {
         </div>
       </div>
 
-      {/* Floating Highlight Callout Box (matching reference image) */}
-      <div className="hidden sm:flex absolute right-44 top-28 z-10 px-3.5 py-2 rounded-xl bg-white text-slate-900 shadow-2xl flex-col items-start border border-slate-200 animate-pulse">
-        <span className="text-[10px] font-semibold text-slate-500">09 Dec, 2026 ↗</span>
-        <span className="text-xs font-extrabold text-slate-900">₹9,780.90 INR</span>
-      </div>
-
       {/* Area Chart Canvas */}
       <div className="h-56 sm:h-64 w-full my-2">
         <Line data={chartData} options={chartOptions} />
       </div>
 
       {/* Bottom Timeline & Legend Indicators */}
-      <div className="pt-4 border-t border-[#24201e] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+      <div className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
         
         {/* Timeline Month Tracker */}
         <div className="flex items-center gap-3">
-          <span className="text-[#8c827a]">Average annual rate:</span>
-          <span className="font-bold text-white tracking-wide">₹84,000</span>
+          <span className="text-slate-500">Balance trend:</span>
+          <span className="font-bold text-slate-800 tracking-wide">Live overview</span>
         </div>
 
         {/* Legend */}
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-sm bg-white" />
-            <span className="text-[#a89d95] text-[11px]">Actual balance</span>
+            <span className="w-2.5 h-2.5 rounded-sm bg-[#101522]" />
+            <span className="text-slate-500 text-[11px]">Balance</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-sm bg-[#22c55e]" />
-            <span className="text-[#a89d95] text-[11px]">Total monthly balance</span>
+            <span className="w-2.5 h-2.5 rounded-sm bg-[#2277ff]" />
+            <span className="text-slate-500 text-[11px]">Monthly trend</span>
           </div>
         </div>
 
